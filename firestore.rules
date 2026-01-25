@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.admin == true;
+    }
+    
+    // Admin Configuration Collection
+    match /admin_configuration/{document=**} {
+      // Only authenticated admin users can read/write configuration
+      allow read, write: if isAdmin();
+    }
+    
+    // Users Collection
+    match /users/{userId} {
+      // Users can read their own data
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      // Only admins can write user data
+      allow write: if isAdmin();
+      // Admins can read all users
+      allow read: if isAdmin();
+    }
+    
+    // Posts Collection
+    match /posts/{postId} {
+      // Anyone can read posts
+      allow read: if true;
+      // Only authenticated users can create posts
+      allow create: if isAuthenticated();
+      // Only post owner or admin can update/delete
+      allow update, delete: if isAuthenticated() && 
+                              (request.auth.uid == resource.data.userId || isAdmin());
+      // Admins can do everything
+      allow read, write: if isAdmin();
+    }
+    
+    // Reports Collection
+    match /reports/{reportId} {
+      // Only authenticated users can read their own reports
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.reporterId;
+      // Only authenticated users can create reports
+      allow create: if isAuthenticated();
+      // Admins can read/write all reports
+      allow read, write: if isAdmin();
+    }
+    
+    // Announcements Collection
+    match /announcements/{announcementId} {
+      // Anyone can read approved announcements
+      allow read: if resource.data.status == 'approved';
+      // Only authenticated users can create announcements
+      allow create: if isAuthenticated();
+      // Admins can do everything
+      allow read, write: if isAdmin();
+    }
+    
+    // Announcers Collection
+    match /announcers/{announcerId} {
+      // Anyone can read approved announcers
+      allow read: if resource.data.status == 'approved';
+      // Only authenticated users can create announcer requests
+      allow create: if isAuthenticated();
+      // Admins can do everything
+      allow read, write: if isAdmin();
+    }
+    
+    // Notifications Collection
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      // Only admins can create/update notifications
+      allow create, update: if isAdmin();
+      // Users can update their own notifications (e.g., mark as read)
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+  }
+}
