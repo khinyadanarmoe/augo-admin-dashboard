@@ -1,0 +1,162 @@
+// User related types
+export interface User {
+  id: string;
+  studentId: string;
+  name: string;
+  nickname: string;
+  birthdate: string;
+  email: string;
+  faculty: string;
+  status: import('./constants').UserStatus;
+  warningCount: number;
+  joinedAt: string;
+  avatar?: string;
+}
+
+export interface UserProfile extends User {
+  totalPosts: number;
+  warningCounts: number;
+  todayPosts: {
+    count: number;
+    likes: number;
+    dislikes: number;
+    reportCounts: number;
+  };
+  joinDate: string;
+}
+
+// Post related types
+export interface Post {
+  id: string;
+  postDate: string;
+  user: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  content: string;
+  category: string;
+  location: string;
+  likes: number;
+  dislikes: number;
+  reportCount: number;
+  status: import('./constants').PostStatus;
+}
+
+// Report related types
+export interface Report {
+  id: string;
+  reportDate: string;
+  reporter: {
+    name: string;
+    id: string;
+  };
+  reported: {
+    name: string;
+    id: string;
+  };
+  postId: string;
+  postContent: string;
+  category: 'offensive' | 'spam' | 'harassment' | 'misinformation';
+  reportCount: number;
+  status: import('./constants').ReportStatus;
+  description: string;
+}
+
+// Announcement related types
+export interface Announcement {
+  id: string;
+  date: string;
+  faculty: string;
+  location: string;
+  contentTopic: string;
+  content: string;
+  author: string;
+  status: import('./constants').AnnouncementStatus;
+  views: number;
+}
+
+// Warning related types
+export interface WarningRecord {
+  id: string;
+  postId: string;
+  postContent: string;
+  date: string;
+  reportCounts: number;
+  reason: string;
+  adminId: string;
+  adminName: string;
+}
+
+// Announcer related types
+export interface Announcer {
+  id: string;
+  name: string;
+  email: string;
+  affiliation_name: string;
+  affiliation_type: import('./constants').AffiliationType;
+  status: import('./constants').AnnouncerStatus;
+  total_announcements: number;
+  joined_date: Date;
+}
+
+// Dashboard related types
+export interface DashboardMetric {
+  title: string;
+  value: string | number;
+  change: string;
+  changeType: 'increase' | 'decrease' | 'neutral';
+  icon: string;
+}
+
+export interface ChartData {
+  name: string;
+  value: number;
+  color?: string;
+}
+
+export interface UserActivity {
+  date: string;
+  activeUsers: number;
+  newUsers: number;
+  posts: number;
+}
+
+// Configuration types
+export interface AdminConfiguration {
+  id: string;
+  postVisibilityDuration: number; // hours
+  dailyFreePostLimit: number;
+  reportThresholds: {
+    normal: number;
+    warning: number;
+    urgent: number;
+  };
+  emojiPinPrice: number;
+  dailyFreeCoin: number;
+  lastUpdated: string;
+  updatedBy: string;
+}
+
+export interface ConfigurationLog {
+  id: string;
+  adminId: string;
+  adminEmail: string;
+  timestamp: string;
+  changes: {
+    field: string;
+    oldValue: any;
+    newValue: any;
+  }[];
+  ipAddress?: string;
+}
+
+// Component Props types
+export interface TableProps<T> {
+  data?: T[];
+}
+
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
