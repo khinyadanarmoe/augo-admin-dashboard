@@ -2,7 +2,7 @@
 
 Admin dashboard for AUGo community platform - manage users, posts, reports, and announcements with real-time updates.
 
-## 🚀 Features
+## Features
 
 - **User Management** - Monitor and manage user accounts, track status and warnings
 - **Post Moderation** - Review, warn, and remove posts with filtering and search
@@ -13,7 +13,7 @@ Admin dashboard for AUGo community platform - manage users, posts, reports, and 
 - **Analytics Dashboard** - View metrics, charts, and activity insights
 - **Configuration Panel** - Customize thresholds and system settings
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
 - **Backend**: Firebase (Firestore, Authentication, Cloud Functions)
