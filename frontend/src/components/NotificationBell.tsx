@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAdminConfiguration } from '@/hooks/useAdminConfiguration';
 import { subscribeToPostsUpdates } from '@/lib/firestore/posts';
-import { Post } from '@/types/export';
+import { fetchAnnouncements } from '@/lib/firestore/announcements';
+import { Post, Announcement } from '@/types/export';
 
 interface NotificationBellProps {
   className?: string;
@@ -14,6 +15,7 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
   const [posts, setPosts] = useState<Post[]>([]);
   const [urgentCount, setUrgentCount] = useState(0);
   const [urgentPosts, setUrgentPosts] = useState<Post[]>([]);
+  const [upcomingAnnouncements, setUpcomingAnnouncements] = useState<Announcement[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -73,7 +75,6 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
           post.status !== 'removed'
         );
         setUrgentPosts(filteredUrgentPosts);
-        setUrgentCount(filteredUrgentPosts.length);
         
         // Log for debugging
         console.log('Urgent posts found:', filteredUrgentPosts.length);
@@ -83,6 +84,41 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
       processUrgentPosts();
     }
   }, [config, posts, shouldMarkPostAsUrgent, getPostSeverityLevel]);
+
+  // Fetch announcements starting within configured threshold
+  useEffect(() => {
+    const fetchUpcomingAnnouncements = async () => {
+      try {
+        const announcements = await fetchAnnouncements();
+        const now = new Date();
+        
+        // Use configured threshold or default to 48 hours
+        const thresholdHours = config?.urgentAnnouncementThreshold || 48;
+        const thresholdTime = new Date(now.getTime() + thresholdHours * 60 * 60 * 1000);
+        
+        const upcoming = announcements.filter(announcement => {
+          const startDate = new Date(announcement.startDate);
+          return announcement.status === 'pending' && 
+                 startDate > now && 
+                 startDate <= thresholdTime;
+        });
+        
+        setUpcomingAnnouncements(upcoming);
+      } catch (error) {
+        console.error('Error fetching upcoming announcements:', error);
+      }
+    };
+
+    fetchUpcomingAnnouncements();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchUpcomingAnnouncements, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [config]);
+
+  // Update total urgent count
+  useEffect(() => {
+    setUrgentCount(urgentPosts.length + upcomingAnnouncements.length);
+  }, [urgentPosts, upcomingAnnouncements]);
 
   const handleBellClick = () => {
     const newState = !isDropdownOpen;
@@ -101,6 +137,23 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
         autoScroll: 'true'
       }
     });
+  };
+
+  const handleAnnouncementClick = (announcementId: string) => {
+    setIsDropdownOpen(false);
+    // Navigate to announcements page
+    router.push('/announcements');
+  };
+
+  const getTimeUntilStart = (startDate: Date | string) => {
+    const now = new Date();
+    const start = new Date(startDate);
+    const diffInMinutes = Math.floor((start.getTime() - now.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''}`;
+    return `${Math.floor(diffInHours / 24)} day${Math.floor(diffInHours / 24) > 1 ? 's' : ''}`;
   };
 
   return (
@@ -161,34 +214,67 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
                 <p>No urgent notifications</p>
               </div>
             ) : (
-              urgentPosts.map((post, index) => (
-                <div key={post.id} className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <div className="flex items-start space-x-3">
-                    <div className="shrink-0 mt-1">
-                      🔴
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        Urgent report
+              <>
+                {/* Upcoming Announcements */}
+                {upcomingAnnouncements.map((announcement) => (
+                  <div key={`announcement-${announcement.id}`} className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div className="flex items-start space-x-3">
+                      <div className="shrink-0 mt-1">
+                        📢
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        One post exceeded report threshold
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        {post.reportCount} reports • {formatRelativeTime(post.postDate)}
-                      </div>
-                      <div className="mt-2">
-                        <button
-                          onClick={() => handleReviewClick(post.id)}
-                          className="inline-flex items-center px-3 py-1 text-xs font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-300 dark:hover:bg-purple-800 rounded-full transition-colors"
-                        >
-                          Review
-                        </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          Upcoming Announcement
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                          {announcement.title}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          Starts in {getTimeUntilStart(announcement.startDate)} • {announcement.department}
+                        </div>
+                        <div className="mt-2">
+                          <button
+                            onClick={() => handleAnnouncementClick(announcement.id)}
+                            className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800 rounded-full transition-colors"
+                          >
+                            View
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+                
+                {/* Urgent Posts */}
+                {urgentPosts.map((post) => (
+                  <div key={`post-${post.id}`} className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <div className="flex items-start space-x-3">
+                      <div className="shrink-0 mt-1">
+                        🔴
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          Urgent report
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          One post exceeded report threshold
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          {post.reportCount} reports • {formatRelativeTime(post.postDate)}
+                        </div>
+                        <div className="mt-2">
+                          <button
+                            onClick={() => handleReviewClick(post.id)}
+                            className="inline-flex items-center px-3 py-1 text-xs font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-300 dark:hover:bg-purple-800 rounded-full transition-colors"
+                          >
+                            Review
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </div>
         </div>

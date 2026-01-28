@@ -2,22 +2,9 @@ import React from "react";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import UserTable from "@/components/tables/UserTable";
-import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 
-export default function Users() {
-  const { isAuthenticated, isLoading } = useAdminAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null; // Hook handles redirect
-  }
+function Users() {
 
   return (
     <div className="min-h-screen bg-purple-50/40 dark:bg-black text-zinc-900 dark:text-zinc-50">
@@ -40,3 +27,5 @@ export default function Users() {
     </div>
   );
 }
+
+export default withAdminAuth(Users);

@@ -2,8 +2,9 @@ import React from "react";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import AnnouncementTable from "@/components/tables/AnnouncementTable";
+import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 
-export default function Announcements() {
+function Announcements() {
   return (
     <div className="min-h-screen bg-purple-50/40 dark:bg-black text-zinc-900 dark:text-zinc-50">
       <div className="flex min-h-screen p-4">
@@ -25,3 +26,5 @@ export default function Announcements() {
     </div>
   );
 }
+
+export default withAdminAuth(Announcements);

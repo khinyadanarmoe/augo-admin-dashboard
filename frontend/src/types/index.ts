@@ -66,14 +66,22 @@ export interface Report {
 // Announcement related types
 export interface Announcement {
   id: string;
-  date: string;
-  faculty: string;
-  location: string;
-  contentTopic: string;
-  content: string;
-  author: string;
-  status: import('./constants').AnnouncementStatus;
-  views: number;
+  title: string;
+  department: string;
+  body?: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  status: string;
+  link?: string;
+  latitude?: number;
+  longitude?: number;
+  isUrgent?: boolean;
+  createdByUID?: string;
+  createdByName?: string;
+  createdByEmail?: string;
+  submittedAt?: Date | string;
+  rejectedAt?: Date | string | null;
+  views?: number;
 }
 
 // Warning related types
@@ -93,11 +101,15 @@ export interface Announcer {
   id: string;
   name: string;
   email: string;
+  password: string;
   affiliation_name: string;
   affiliation_type: import('./constants').AffiliationType;
+  phone: string;
+  role: string;
   status: import('./constants').AnnouncerStatus;
   total_announcements: number;
   joined_date: Date;
+  profilePicture?: string;
 }
 
 // Dashboard related types
@@ -134,6 +146,8 @@ export interface AdminConfiguration {
   };
   emojiPinPrice: number;
   dailyFreeCoin: number;
+  maxActiveAnnouncements: number;
+  urgentAnnouncementThreshold: number; // hours before startDate to show in notification
   lastUpdated: string;
   updatedBy: string;
 }

@@ -11,9 +11,9 @@ import RecentReportsList from "@/components/dashboard/RecentReportsList";
 import PendingAnnouncementApprovals from "@/components/dashboard/PendingAnnouncementApprovals";
 import PendingAnnouncerApprovals from "@/components/dashboard/PendingAnnouncerApprovals";
 import { Icons } from "@/utils/icons";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 
-export default function Home() {
+function Home() {
 
   return (
     <>
@@ -91,5 +91,6 @@ export default function Home() {
       </div>
     </>
   );
-
 }
+
+export default withAdminAuth(Home);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Announcement, ANNOUNCEMENT_STATUS, FACULTIES, LOCATIONS, CONTENT_TOPICS } from "@/types/export";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { fetchAnnouncers } from "@/lib/firestore/announcers";
+import { fetchAnnouncements } from "@/lib/firestore/announcements";
 import AnnouncementDetailDrawer from "@/components/drawers/AnnouncementDetailDrawer";
 
 interface AnnouncementTableProps {
@@ -24,12 +24,12 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
 
   useEffect(() => {
     setLoading(true);
-    fetchAnnouncers()
+    fetchAnnouncements()
       .then((data) => {
-        const announcers = data;
-        console.log("Fetched announcers:", announcers);
-        // TODO: If this should fetch announcements instead, create fetchAnnouncements function
+        console.log('Fetched announcements:', data);
+        setFetchedAnnouncements(data);
       })
+      .catch(err => console.error('Error fetching announcements:', err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -46,62 +46,14 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
     return null; // Hook handles redirect
   }
 
-  const sampleAnnouncements: Announcement[] = [
-    {
-      id: "1",
-      date: "2024-11-19",
-      faculty: FACULTIES.VMES,
-      location: LOCATIONS.JOHNPAUL,
-      contentTopic: "Exam Schedule",
-      content: "Final exam schedule for semester 1/2024 has been released...",
-      author: "Academic Office",
-      status: ANNOUNCEMENT_STATUS.ACTIVE,
-      views: 1250
-    },
-    {
-      id: "2",
-      date: "2024-11-18",
-      faculty: FACULTIES.BUSINESS,
-      location: LOCATIONS.CL_BUILDING,
-      contentTopic: "Workshop",
-      content: "Digital Marketing Workshop registration is now open...",
-      author: "Business Faculty",
-      status: ANNOUNCEMENT_STATUS.SCHEDULED,
-      views: 580
-    },
-    {
-      id: "3",
-      date: "2024-11-17",
-      faculty: FACULTIES.ENGINEERING,
-      location: LOCATIONS.MSE,
-      contentTopic: "Career Fair",
-      content: "Annual Career Fair 2024 - Meet with top employers...",
-      author: "Career Center",
-      status: ANNOUNCEMENT_STATUS.EXPIRED,
-      views: 2100
-    },
-    {
-      id: "4",
-      date: "2024-11-16",
-      faculty: FACULTIES.ALL,
-      location: LOCATIONS.ADMIN_OFFICE,
-      contentTopic: "Holiday Notice",
-      content: "University will be closed during national holidays...",
-      author: "Administration",
-      status: ANNOUNCEMENT_STATUS.ACTIVE,
-      views: 3200
-    }
-  ];
-
-  const displayAnnouncements = announcements || (fetchedAnnouncements.length > 0 ? fetchedAnnouncements : sampleAnnouncements);
+  const displayAnnouncements = announcements || (fetchedAnnouncements.length > 0 ? fetchedAnnouncements : []);
 
   // Filter announcements
   const filteredAnnouncements = displayAnnouncements.filter(announcement => {
+    const startDate = new Date(announcement.startDate).toISOString().split('T')[0];
     return (
-      (dateFilter === '' || announcement.date === dateFilter) &&
-      (facultyFilter === '' || announcement.faculty === facultyFilter) &&
-      (locationFilter === '' || announcement.location === locationFilter) &&
-      (topicFilter === '' || announcement.contentTopic === topicFilter) &&
+      (dateFilter === '' || startDate === dateFilter) &&
+      (facultyFilter === '' || announcement.department === facultyFilter) &&
       (statusFilter === '' || announcement.status === statusFilter)
     );
   });
@@ -153,6 +105,38 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
   const handleRemove = (announcementId: string) => {
     console.log('Remove announcement:', announcementId);
     // TODO: Implement announcement removal logic
+  };
+
+  const handleApprove = async (announcementId: string) => {
+    try {
+      const { updateAnnouncement } = await import('@/lib/firestore/announcements');
+      await updateAnnouncement(announcementId, { status: 'approved' });
+      // Refresh data
+      const { fetchAnnouncements } = await import('@/lib/firestore/announcements');
+      const data = await fetchAnnouncements();
+      setFetchedAnnouncements(data);
+      setIsDrawerOpen(false);
+      alert('Announcement approved successfully!');
+    } catch (error) {
+      console.error('Error approving announcement:', error);
+      alert('Failed to approve announcement');
+    }
+  };
+
+  const handleReject = async (announcementId: string) => {
+    try {
+      const { updateAnnouncement } = await import('@/lib/firestore/announcements');
+      await updateAnnouncement(announcementId, { status: 'rejected' });
+      // Refresh data
+      const { fetchAnnouncements } = await import('@/lib/firestore/announcements');
+      const data = await fetchAnnouncements();
+      setFetchedAnnouncements(data);
+      setIsDrawerOpen(false);
+      alert('Announcement rejected');
+    } catch (error) {
+      console.error('Error rejecting announcement:', error);
+      alert('Failed to reject announcement');
+    }
   };
 
   return (
@@ -222,28 +206,22 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Date
+                Title
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Faculty
+                Department
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Location
+                Start Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Content Topic
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Content
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Author
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Views
+                End Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Urgent
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Action
@@ -253,35 +231,31 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {paginatedAnnouncements.map((announcement) => (
               <tr key={announcement.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {new Date(announcement.date).toLocaleDateString()}
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white max-w-xs">
+                  <div className="truncate">{announcement.title}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded-full">
-                    {announcement.faculty}
+                    {announcement.department}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {announcement.location}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTopicColor(announcement.contentTopic)}`}>
-                    {announcement.contentTopic}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-900 dark:text-white max-w-xs truncate">
-                  {announcement.content}
+                  {new Date(announcement.startDate).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {announcement.author}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {announcement.views.toLocaleString()}
+                  {new Date(announcement.endDate).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(announcement.status)}`}>
                     {announcement.status}
                   </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  {announcement.isUrgent && (
+                    <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 rounded-full">
+                      Urgent
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                   <button 
@@ -402,6 +376,8 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
         announcement={selectedAnnouncement}
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
+        onApprove={handleApprove}
+        onReject={handleReject}
       />
     </div>
   );

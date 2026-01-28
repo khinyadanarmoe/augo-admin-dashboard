@@ -27,7 +27,9 @@ export const DEFAULT_CONFIGURATION: Omit<AdminConfiguration, 'id' | 'lastUpdated
     urgent: 10
   },
   emojiPinPrice: 10,
-  dailyFreeCoin: 10
+  dailyFreeCoin: 10,
+  maxActiveAnnouncements: 3,
+  urgentAnnouncementThreshold: 48
 };
 
 /**
@@ -49,6 +51,8 @@ export const getAdminConfiguration = async (): Promise<AdminConfiguration> => {
         reportThresholds: data.reportThresholds || DEFAULT_CONFIGURATION.reportThresholds,
         emojiPinPrice: data.emojiPinPrice || DEFAULT_CONFIGURATION.emojiPinPrice,
         dailyFreeCoin: data.dailyFreeCoin || DEFAULT_CONFIGURATION.dailyFreeCoin,
+        maxActiveAnnouncements: data.maxActiveAnnouncements || DEFAULT_CONFIGURATION.maxActiveAnnouncements,
+        urgentAnnouncementThreshold: data.urgentAnnouncementThreshold || DEFAULT_CONFIGURATION.urgentAnnouncementThreshold,
         lastUpdated: data.lastUpdated || new Date().toISOString(),
         updatedBy: data.updatedBy || 'migration'
       };

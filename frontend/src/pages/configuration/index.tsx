@@ -30,7 +30,9 @@ function Configuration() {
       urgent: 10
     },
     emojiPinPrice: 0.99,
-    dailyFreeCoin: 10
+    dailyFreeCoin: 10,
+    maxActiveAnnouncements: 3,
+    urgentAnnouncementThreshold: 48
   });
 
   // Load configuration on component mount
@@ -47,7 +49,9 @@ function Configuration() {
           dailyFreePostLimit: configuration.dailyFreePostLimit,
           reportThresholds: configuration.reportThresholds,
           emojiPinPrice: configuration.emojiPinPrice,
-          dailyFreeCoin: configuration.dailyFreeCoin || 10
+          dailyFreeCoin: configuration.dailyFreeCoin || 10,
+          maxActiveAnnouncements: configuration.maxActiveAnnouncements || 3,
+          urgentAnnouncementThreshold: configuration.urgentAnnouncementThreshold || 48
         });
       } catch (err: any) {
         console.error('Error loading configuration:', err);
@@ -63,7 +67,9 @@ function Configuration() {
             urgent: 10
           },
           emojiPinPrice: 10,
-          dailyFreeCoin: 10
+          dailyFreeCoin: 10,
+          maxActiveAnnouncements: 3,
+          urgentAnnouncementThreshold: 48
         });
       } finally {
         setLoading(false);
@@ -83,7 +89,9 @@ function Configuration() {
             dailyFreePostLimit: updatedConfig.dailyFreePostLimit,
             reportThresholds: updatedConfig.reportThresholds,
             emojiPinPrice: updatedConfig.emojiPinPrice,
-            dailyFreeCoin: updatedConfig.dailyFreeCoin || 10
+            dailyFreeCoin: updatedConfig.dailyFreeCoin || 10,
+            maxActiveAnnouncements: updatedConfig.maxActiveAnnouncements || 3,
+            urgentAnnouncementThreshold: updatedConfig.urgentAnnouncementThreshold || 48
           });
         }
       },
@@ -166,7 +174,9 @@ function Configuration() {
         urgent: 10
       },
       emojiPinPrice: 0.99,
-      dailyFreeCoin: 10
+      dailyFreeCoin: 10,
+      maxActiveAnnouncements: 3,
+      urgentAnnouncementThreshold: 48
     });
     setValidationErrors([]);
     setError('');
@@ -197,7 +207,7 @@ function Configuration() {
         <main className="flex-1 p-6 min-h-full ml-4">
           <header className="mb-8 flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold">Admin Configuration</h1>
+              <h1 className="text-3xl font-bold">Configuration</h1>
               <p className="mt-2 text-zinc-600 dark:text-zinc-400">
                 Configure application setting for the AUGo app.
               </p>
@@ -395,6 +405,55 @@ function Configuration() {
                         className="w-20 px-2 py-1 text-sm border-2 border-red-300 dark:border-red-600 rounded focus:ring-red-500 focus:border-red-500 dark:bg-red-900/50 dark:text-white font-medium"
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Announcer Rules Card */}
+            <section>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-medium text-gray-900 dark:text-white">Announcer Rules</h3>
+                  <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900">
+                    <svg className="w-5 h-5 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Max Active Announcements
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={formData.maxActiveAnnouncements}
+                      onChange={(e) => updateFormField('maxActiveAnnouncements', Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Maximum concurrent active announcements per announcer
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Urgent Announcement Threshold (hours)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="168"
+                      value={formData.urgentAnnouncementThreshold}
+                      onChange={(e) => updateFormField('urgentAnnouncementThreshold', Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Show pending announcements in notification bell if starting within this time
+                    </p>
                   </div>
                 </div>
               </div>

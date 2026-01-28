@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import { Announcer, AFFILIATION_TYPES, ANNOUNCER_STATUS } from "@/types/export";
 import type { AnnouncerStatus } from "@/types/constants";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -11,6 +12,7 @@ interface AnnouncerTableProps {
 }
 
 export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
+  const router = useRouter();
   const { isAuthenticated, isLoading } = useAdminAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -28,7 +30,7 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
     setLoading(true);
     fetchAnnouncers()
       .then(data => {
-        console.log('Raw announcer data:', data);
+        // console.log('Raw announcer data:', data);
         
         // Cast status to proper AnnouncerStatus type and handle Firestore Timestamps
         const announcers: Announcer[] = data.map(announcer => ({
@@ -39,65 +41,15 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
             announcer.joined_date
         }));
         
-        console.log('Processed announcer data:', announcers);
+        // console.log('Processed announcer data:', announcers);
         setFetchedAnnouncers(announcers);
       })
       .catch(err => console.error('Error fetching announcers:', err))
       .finally(() => setLoading(false));
   }, []);
 
-  const sampleAnnouncers: Announcer[] = [
-    {
-      id: "1",
-      name: "Dr. John Smith",
-      email: "john.smith@au.edu",
-      affiliation_name: "Academic Affairs",
-      affiliation_type: AFFILIATION_TYPES.FACULTY,
-      status: ANNOUNCER_STATUS.ACTIVE,
-      total_announcements: 15,
-      joined_date: new Date("2024-01-15")
-    },
-    {
-      id: "2",
-      name: "Prof. Sarah Johnson",
-      email: "sarah.johnson@au.edu",
-      affiliation_name: "Student Services",
-      affiliation_type: AFFILIATION_TYPES.OFFICE,
-      status: ANNOUNCER_STATUS.ACTIVE,
-      total_announcements: 8,
-      joined_date: new Date("2024-03-22")
-    },
-    {
-      id: "3",
-      name: "Dr. Michael Chen",
-      email: "michael.chen@au.edu",
-      affiliation_name: "Research Department",
-      affiliation_type: AFFILIATION_TYPES.FACULTY,
-      status: ANNOUNCER_STATUS.INACTIVE,
-      total_announcements: 3,
-      joined_date: new Date("2023-08-10")
-    },
-    {
-      id: "4",
-      name: "VMES Committee",
-      email: "vmes@au.edu",
-      affiliation_name: "VMES Committee",
-      affiliation_type: AFFILIATION_TYPES.STUDENT_ORG,
-      status: ANNOUNCER_STATUS.ACTIVE,
-      total_announcements: 12,
-      joined_date: new Date("2024-09-01")
-    },
-    {
-      id: "5",
-      name: "Registrar Office",
-      email: "registrar@au.edu",
-      affiliation_name: "Registrar Office",
-      affiliation_type: AFFILIATION_TYPES.OFFICE,
-      status: ANNOUNCER_STATUS.INACTIVE,
-      total_announcements: 5,
-      joined_date: new Date("2023-11-18")
-    }
-  ];
+
+ 
 
   // Handle loading and authentication states
   if (isLoading) {
@@ -112,7 +64,7 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
     return null; // Hook handles redirect
   }
 
-  const displayAnnouncers = announcers || (fetchedAnnouncers && fetchedAnnouncers.length > 0 ? fetchedAnnouncers : sampleAnnouncers);
+  const displayAnnouncers = announcers || (fetchedAnnouncers && fetchedAnnouncers.length > 0 ? fetchedAnnouncers : []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -135,7 +87,7 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
   };
 
   const handleView = (announcerId: string) => {
-    const announcer = displayAnnouncers.find(a => a.id === announcerId) || null;
+    const announcer = displayAnnouncers.find((a: Announcer) => a.id === announcerId) || null;
     setSelectedAnnouncer(announcer);
     setShowDetailDrawer(true);
   };
@@ -146,7 +98,22 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
   };
 
   const handleEdit = (announcerId: string) => {
-    console.log('Edit announcer:', announcerId);
+    const announcer = displayAnnouncers.find((a: Announcer) => a.id === announcerId);
+    if (announcer) {
+      router.push({
+        pathname: '/announcers/add',
+        query: { 
+          edit: 'true',
+          id: announcer.id,
+          name: announcer.name,
+          email: announcer.email,
+          affiliation_type: announcer.affiliation_type,
+          affiliation_name: announcer.affiliation_name,
+          phone: announcer.phone || '',
+          role: announcer.role || ''
+        }
+      });
+    }
   };
 
   const handleStatusToggle = (announcer: Announcer) => {
@@ -169,7 +136,7 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
     setSelectedAnnouncer(null);
   };
 
-  const filteredAnnouncers = displayAnnouncers.filter(announcer => {
+  const filteredAnnouncers = displayAnnouncers.filter((announcer: Announcer) => {
     return (
       (searchTerm === '' || 
        announcer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -256,7 +223,9 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-          
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Profile
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Name
               </th>
@@ -286,7 +255,7 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center">
+                <td colSpan={8} className="px-6 py-12 text-center">
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                     <span className="ml-3 text-gray-500 dark:text-gray-400">Loading announcers...</span>
@@ -295,22 +264,33 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
               </tr>
             ) : paginatedAnnouncers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={8} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   No announcers found.
                 </td>
               </tr>
             ) : (
-              paginatedAnnouncers.map((announcer) => (
+              paginatedAnnouncers.map((announcer: Announcer) => (
               <tr key={announcer.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-               
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600">
+                    {announcer.profilePicture ? (
+                      <img 
+                        src={announcer.profilePicture} 
+                        alt={announcer.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                        <span className="text-sm font-medium text-purple-600 dark:text-purple-300">
+                          {announcer.name.split(' ').map((n: string) => n[0]).join('')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-purple-600 dark:text-purple-300">
-                        {announcer.name.split(' ').map(n => n[0]).join('')}
-                      </span>
-                    </div>
-                    <div className="ml-4">
+                    <div>
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {announcer.name}
                       </div>
@@ -487,7 +467,7 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
         isOpen={showDetailDrawer}
         onClose={handleCloseDrawer}
         onStatusToggle={(announcerId, currentStatus) => {
-          const announcer = displayAnnouncers.find(a => a.id === announcerId);
+          const announcer = displayAnnouncers.find((a: Announcer) => a.id === announcerId);
           if (announcer) {
             handleStatusToggle(announcer);
           }

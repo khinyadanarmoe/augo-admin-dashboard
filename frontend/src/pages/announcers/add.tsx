@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
-import { addAnnouncer } from "@/lib/firestore/announcers";
+import { addAnnouncer, updateAnnouncer, updateAnnouncerProfilePicture } from "@/lib/firestore/announcers";
 import { AFFILIATION_TYPES } from "@/types/export";
-
+import { withAdminAuth } from "@/components/hoc/withAdminAuth";
+import bcrypt from "bcryptjs";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase";
 
 interface AnnouncerFormData {
   name: string;
@@ -11,23 +14,44 @@ interface AnnouncerFormData {
   affiliation_type: string;
   affiliation_name: string;
   role: string;
+  password: string;
   phone: string;
   profilePicture: File | null;
 }
 
-export default function AddAnnouncer() {
+function AddAnnouncer() {
   const router = useRouter();
+  const { query } = router;
+  const isEditMode = query.edit === 'true';
+  
   const [formData, setFormData] = useState<AnnouncerFormData>({
     name: '',
     email: '',
     affiliation_type: '',
     affiliation_name: '',
     role: '',
+    password: '',
     phone: '',
     profilePicture: null
   });
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Load data when in edit mode
+  useEffect(() => {
+    if (isEditMode && query.id) {
+      setFormData({
+        name: (query.name as string) || '',
+        email: (query.email as string) || '',
+        affiliation_type: (query.affiliation_type as string) || '',
+        affiliation_name: (query.affiliation_name as string) || '',
+        role: (query.role as string) || '',
+        password: '', // Don't populate password in edit mode
+        phone: (query.phone as string) || '',
+        profilePicture: null
+      });
+    }
+  }, [isEditMode, query]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -54,35 +78,164 @@ export default function AddAnnouncer() {
     }
   };
 
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 400;
+          const MAX_HEIGHT = 400;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error('Compression failed'));
+            },
+            'image/jpeg',
+            0.8
+          );
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const uploadProfilePicture = async (file: File, announcerId: string): Promise<string> => {
+    try {
+      console.log('Starting image compression...');
+      // Compress image before upload
+      const compressedBlob = await compressImage(file);
+      console.log('Image compressed, size:', compressedBlob.size);
+      
+      const storageRef = ref(storage, `announcers/${announcerId}/profile.jpg`);
+      console.log('Uploading to Firebase Storage...');
+      
+      // Add timeout protection (30 seconds)
+      const uploadPromise = uploadBytes(storageRef, compressedBlob);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Upload timeout - check Firebase Storage rules')), 30000)
+      );
+      
+      await Promise.race([uploadPromise, timeoutPromise]);
+      console.log('Upload complete, getting download URL...');
+      
+      const downloadURL = await getDownloadURL(storageRef);
+      console.log('Download URL obtained:', downloadURL);
+      return downloadURL;
+    } catch (error: any) {
+      console.error('Image upload error:', error);
+      throw new Error(`Failed to upload image: ${error.message}`);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     try {
-      // Validate required fields
+      // Validate required fields - password not required in edit mode if not changing it
       if (!formData.name || !formData.email || !formData.affiliation_type || !formData.affiliation_name) {
         alert('Please fill in all required fields');
         setIsLoading(false);
         return;
       }
 
-      // Save to Firestore
-      const newAnnouncerId = await addAnnouncer({
-        name: formData.name,
-        email: formData.email,
-        affiliation_name: formData.affiliation_name,
-        affiliation_type: formData.affiliation_type,
-        phone: formData.phone,
-        role: formData.role
-      });
-      
-      console.log('New announcer created with ID:', newAnnouncerId);
+      // In create mode, password is required
+      if (!isEditMode && !formData.password) {
+        alert('Password is required');
+        setIsLoading(false);
+        return;
+      }
+
+      if (isEditMode && query.id) {
+        // Update existing announcer
+        const updateData: any = {
+          name: formData.name,
+          email: formData.email,
+          affiliation_name: formData.affiliation_name,
+          affiliation_type: formData.affiliation_type,
+          phone: formData.phone,
+          role: formData.role
+        };
+
+        // Upload profile picture if a new one is selected
+        if (formData.profilePicture) {
+          try {
+            console.log('Uploading profile picture for edit mode...');
+            const imageUrl = await uploadProfilePicture(formData.profilePicture, query.id as string);
+            updateData.profilePicture = imageUrl;
+          } catch (error: any) {
+            console.error('Failed to upload image:', error);
+            alert(`Failed to upload image: ${error.message}. The announcer will be updated without the new image.`);
+            // Continue with update even if image upload fails
+          }
+        }
+
+        // Only hash and update password if a new one is provided
+        if (formData.password && formData.password.trim() !== '') {
+          const salt = await bcrypt.genSalt(6); // Reduced from 10 to 6 for faster processing
+          const hashedPassword = await bcrypt.hash(formData.password, salt);
+          updateData.password = hashedPassword;
+        }
+
+        await updateAnnouncer(query.id as string, updateData);
+        console.log('Announcer updated with ID:', query.id);
+        alert('Announcer updated successfully!');
+      } else {
+        // Create new announcer
+        // Hash the password before saving
+        const salt = await bcrypt.genSalt(6); // Reduced from 10 to 6 for faster processing
+        const hashedPassword = await bcrypt.hash(formData.password, salt);
+
+        const newAnnouncerId = await addAnnouncer({
+          name: formData.name,
+          email: formData.email,
+          affiliation_name: formData.affiliation_name,
+          affiliation_type: formData.affiliation_type,
+          phone: formData.phone,
+          role: formData.role,
+          password: hashedPassword
+        });
+
+        // Upload profile picture if provided
+        if (formData.profilePicture) {
+          const imageUrl = await uploadProfilePicture(formData.profilePicture, newAnnouncerId);
+          // Only update the profilePicture field
+          await updateAnnouncerProfilePicture(newAnnouncerId, imageUrl);
+        }
+        
+        console.log('New announcer created with ID:', newAnnouncerId);
+        alert('Announcer created successfully!');
+      }
       
       // Redirect back to announcers list
       router.push('/announcers');
     } catch (error) {
-      console.error('Error creating announcer:', error);
-      alert('Failed to create announcer. Please try again.');
+      console.error('Error saving announcer:', error);
+      alert(`Failed to ${isEditMode ? 'update' : 'create'} announcer. Please try again.`);
     } finally {
       setIsLoading(false);
     }
@@ -111,8 +264,10 @@ export default function AddAnnouncer() {
                 </svg>
               </button>
               <div>
-                <h1 className="text-3xl font-bold">Add New Announcer</h1>
-                <p className="mt-2 text-zinc-600 dark:text-zinc-400">Create a new announcer profile with all required information</p>
+                <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Announcer' : 'Add New Announcer'}</h1>
+                <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+                  {isEditMode ? 'Update announcer profile information' : 'Create a new announcer profile with all required information'}
+                </p>
               </div>
             </div>
 
@@ -179,6 +334,22 @@ export default function AddAnnouncer() {
                   />
                 </div>
 
+                {/* Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Password {isEditMode ? '(leave blank to keep current)' : '*'}
+                  </label>
+                  <input
+                    type="text"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    required={!isEditMode}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder={isEditMode ? "Enter new password (or leave blank)" : "Enter password"}
+                  />
+                </div>
+
                 {/* Email */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -195,6 +366,21 @@ export default function AddAnnouncer() {
                   />
                 </div>
 
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+
                 {/* Type */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -208,7 +394,7 @@ export default function AddAnnouncer() {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     <option value="">Select Type</option>
-                    {Object.values(AFFILIATION_TYPES).map(type => (
+                    {Object.values(AFFILIATION_TYPES).map((type: string) => (
                       <option key={type} value={type}>{type}</option>
                     ))}
                   </select>
@@ -245,21 +431,6 @@ export default function AddAnnouncer() {
                     placeholder="e.g., PR Assistant, Dean, President, Administrator"
                   />
                 </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Enter phone number"
-                  />
-                </div>
               </div>
 
 
@@ -284,7 +455,12 @@ export default function AddAnnouncer() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                   )}
-                  <span>{isLoading ? 'Creating...' : 'Create Announcer'}</span>
+                  <span>
+                    {isLoading 
+                      ? (isEditMode ? 'Updating...' : 'Creating...') 
+                      : (isEditMode ? 'Update Announcer' : 'Create Announcer')
+                    }
+                  </span>
                 </button>
               </div>
             </form>
@@ -294,3 +470,5 @@ export default function AddAnnouncer() {
     </div>
   );
 }
+
+export default withAdminAuth(AddAnnouncer);

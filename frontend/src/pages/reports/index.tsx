@@ -3,8 +3,9 @@ import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import ReportTable from "@/components/tables/ReportTable";
+import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 
-export default function Reports() {
+function Reports() {
   const router = useRouter();
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -61,3 +62,5 @@ export default function Reports() {
     </div>
   );
 }
+
+export default withAdminAuth(Reports);

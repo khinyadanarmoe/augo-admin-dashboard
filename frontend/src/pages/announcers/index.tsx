@@ -2,9 +2,9 @@ import React from "react";
 import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
 import AnnouncerTable from "@/components/tables/AnnouncerTable";
+import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 
-
-export default function Announcers() {
+function Announcers() {
   const router = useRouter();
 
   const handleAddAnnouncer = () => {
@@ -40,3 +40,5 @@ export default function Announcers() {
     </div>
   );
 }
+
+export default withAdminAuth(Announcers);
