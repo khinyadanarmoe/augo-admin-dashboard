@@ -48,7 +48,8 @@ export default function UserPostsDrawer({ user, isOpen, onClose, onBack }: UserP
           likes: data.likeCount || data.likes || 0,
           dislikes: data.dislikeCount || data.dislikes || 0,
           reportCount: data.reportCount || data.reports || 0,
-          status: data.status || 'active'
+          status: data.status || 'active',
+          isWarned: data.isWarned || false
         };
         fetchedPosts.push(post);
       }
@@ -102,9 +103,9 @@ export default function UserPostsDrawer({ user, isOpen, onClose, onBack }: UserP
       <div className="fixed inset-0 z-40" onClick={onClose} />
       
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-96 bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+      <div className="fixed right-0 top-0 h-full w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div className="flex items-center space-x-3">
             <button
               onClick={onBack}
@@ -127,7 +128,7 @@ export default function UserPostsDrawer({ user, isOpen, onClose, onBack }: UserP
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto" style={{ height: 'calc(100vh - 88px)' }}>
+        <div className="p-4 flex-1 overflow-y-auto">
           {/* User Info Header */}
           <div className="flex items-center space-x-3 mb-6 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center shrink-0">
@@ -174,15 +175,17 @@ export default function UserPostsDrawer({ user, isOpen, onClose, onBack }: UserP
             <div className="space-y-4">
               {posts.map((post) => (
                 <div key={post.id} className={`relative rounded-lg border p-4 ${
-                  post.status === 'removed' || post.status === 'warned'
+                  post.status === 'removed' || post.status === 'expired'
                     ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' 
                     : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600'
                 }`}>
-                {/* Removed Badge */}
-                {(post.status === 'removed' || post.status === 'warned') && (
+                {/* Status Badge */}
+                {(post.status === 'removed' || post.status === 'expired') && (
                   <div className="absolute top-3 right-3">
-                    <span className="bg-red-600 text-white text-xs font-medium px-2 py-1 rounded">
-                      {post.status === 'removed' ? 'REMOVED' : 'WARNED'}
+                    <span className={`text-white text-xs font-medium px-2 py-1 rounded ${
+                      post.status === 'removed' ? 'bg-red-600' : 'bg-yellow-600'
+                    }`}>
+                      {post.status === 'removed' ? 'REMOVED' : 'EXPIRED'}
                     </span>
                   </div>
                 )}
@@ -199,7 +202,7 @@ export default function UserPostsDrawer({ user, isOpen, onClose, onBack }: UserP
 
                     {/* Post Content */}
                     <div className={`text-sm mb-3 whitespace-pre-wrap wrap-break-word ${
-                      post.status === 'removed' || post.status === 'warned'
+                      post.status === 'removed' || post.status === 'expired'
                         ? 'text-red-600 dark:text-red-400 italic' 
                         : 'text-gray-900 dark:text-white'
                     }`}>

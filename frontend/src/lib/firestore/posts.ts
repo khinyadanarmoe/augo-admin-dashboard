@@ -65,7 +65,8 @@ export const getAllPosts = async (): Promise<Post[]> => {
         likes: data.likeCount || 0,
         dislikes: data.dislikeCount || 0,
         reportCount: data.reportCount || 0,
-        status: data.status || 'active'
+        status: data.status || 'active',
+        isWarned: data.isWarned || false
       };
     });
     
@@ -112,7 +113,8 @@ export const subscribeToPostsUpdates = (
             likes: data.likeCount || 0,
             dislikes: data.dislikeCount || 0,
             reportCount: data.reportCount || 0,
-            status: data.status || 'active'
+            status: data.status || 'active',
+            isWarned: data.isWarned || false
           };
         });
         
@@ -128,6 +130,51 @@ export const subscribeToPostsUpdates = (
       onError(error);
     }
   );
+};
+
+/**
+ * Update post warning status
+ */
+export const updatePostWarningStatus = async (postId: string, isWarned: boolean): Promise<void> => {
+  try {
+    const postRef = doc(db, POSTS_COLLECTION, postId);
+    await updateDoc(postRef, {
+      isWarned: isWarned,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error updating post warning status:', error);
+    throw new Error('Failed to update post warning status');
+  }
+};
+
+/**
+ * Mark all posts by a specific user as warned
+ */
+export const markUserPostsAsWarned = async (userId: string): Promise<string[]> => {
+  try {
+    const postsQuery = query(
+      collection(db, POSTS_COLLECTION),
+      where('userId', '==', userId)
+    );
+    
+    const snapshot = await getDocs(postsQuery);
+    const postIds: string[] = [];
+    
+    const updatePromises = snapshot.docs.map(doc => {
+      postIds.push(doc.id);
+      return updateDoc(doc.ref, {
+        isWarned: true,
+        lastUpdated: new Date().toISOString()
+      });
+    });
+    
+    await Promise.all(updatePromises);
+    return postIds;
+  } catch (error) {
+    console.error('Error marking user posts as warned:', error);
+    throw new Error('Failed to mark user posts as warned');
+  }
 };
 
 /**

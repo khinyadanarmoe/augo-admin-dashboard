@@ -41,6 +41,7 @@ export interface Post {
   dislikes: number;
   reportCount: number;
   status: import('./constants').PostStatus;
+  isWarned: boolean;
 }
 
 // Report related types
@@ -148,6 +149,7 @@ export interface AdminConfiguration {
   dailyFreeCoin: number;
   maxActiveAnnouncements: number;
   urgentAnnouncementThreshold: number; // hours before startDate to show in notification
+  banThreshold: number; // warning count threshold for automatic ban
   lastUpdated: string;
   updatedBy: string;
 }

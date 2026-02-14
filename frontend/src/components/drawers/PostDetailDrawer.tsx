@@ -29,7 +29,7 @@ export default function PostDetailDrawer({ post, isOpen, onClose, onWarn, onRemo
 
   // Check if post should be warned based on admin configuration
   const shouldShowWarning = config && post.reportCount >= (config.reportThresholds?.urgent || 5);
-  const canWarn = onWarn && post.status !== POST_STATUS.WARNED && post.status !== POST_STATUS.REMOVED;
+  const canWarn = onWarn && post.status !== POST_STATUS.EXPIRED && post.status !== POST_STATUS.REMOVED;
 
   // Show confirmation modal first
   const handleWarn = () => {
@@ -162,7 +162,7 @@ export default function PostDetailDrawer({ post, isOpen, onClose, onWarn, onRemo
   const getStatusColor = (status: string) => {
     switch (status) {
       case POST_STATUS.ACTIVE: return 'bg-green-100 text-green-800 border-green-200';
-      case POST_STATUS.WARNED: return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case POST_STATUS.EXPIRED: return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case POST_STATUS.REMOVED: return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -184,9 +184,9 @@ export default function PostDetailDrawer({ post, isOpen, onClose, onWarn, onRemo
       <div className="fixed inset-0 z-40" onClick={onClose} />
       
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-96 bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+      <div className="fixed right-0 top-0 h-full w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Post Details</h2>
           <button
             onClick={onClose}
@@ -199,7 +199,7 @@ export default function PostDetailDrawer({ post, isOpen, onClose, onWarn, onRemo
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6 overflow-y-auto">
+        <div className="p-6 space-y-6 flex-1 overflow-y-auto">
           {/* Status Badge */}
           <div className="flex justify-between items-start">
             <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(post.status)}`}>
@@ -405,7 +405,7 @@ export default function PostDetailDrawer({ post, isOpen, onClose, onWarn, onRemo
                       ℹ️ What happens when you warn a user:
                     </p>
                     <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
-                      <li>• Post status will be changed to "warned"</li>
+                      <li>• Post status will be changed to "removed"</li>
                       <li>• User will receive a notification about community guidelines</li>
                       <li>• This action will be logged for admin records</li>
                     </ul>

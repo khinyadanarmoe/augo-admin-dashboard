@@ -3,7 +3,9 @@ import { Post, POST_STATUS, POST_CATEGORIES, LOCATIONS } from "@/types/export";
 import PostDetailDrawer from '../drawers/PostDetailDrawer';
 import SendNotificationModal from '@/components/SendNotificationModal';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { subscribeToPostsUpdates, updatePostStatus, deletePost } from '@/lib/firestore/posts';
+import { useAdminConfiguration } from '@/hooks/useAdminConfiguration';
+import { subscribeToPostsUpdates, updatePostStatus, updatePostWarningStatus, deletePost } from '@/lib/firestore/posts';
+import { resolveReportsByPostId } from '@/lib/firestore/reports';
 import { sendWarningNotificationToUser } from '@/lib/firestore/notifications';
 import { incrementUserWarningCount } from '@/lib/firestore/users';
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -15,8 +17,10 @@ interface PostTableProps {
 
 export default function PostTable({ posts: propPosts }: PostTableProps) {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
+  const { config } = useAdminConfiguration();
   const [user] = useAuthState(auth);
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -76,16 +80,40 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
   // Use prop posts or Firestore posts
   const displayPosts = propPosts || firestorePosts;
 
+  // Auto-expire active posts past visibility duration
+  useEffect(() => {
+    if (!config?.postVisibilityDuration || displayPosts.length === 0) return;
+
+    const visibilityMs = config.postVisibilityDuration * 60 * 60 * 1000;
+    const now = Date.now();
+
+    displayPosts.forEach(async (post) => {
+      if (post.status !== POST_STATUS.ACTIVE) return;
+      const postTime = new Date(post.postDate).getTime();
+      if (isNaN(postTime)) return;
+      if (now - postTime > visibilityMs) {
+        try {
+          await updatePostStatus(post.id, POST_STATUS.EXPIRED);
+          console.log('Post auto-expired:', post.id);
+        } catch (err) {
+          console.error('Error auto-expiring post:', err);
+        }
+      }
+    });
+  }, [displayPosts, config?.postVisibilityDuration]);
+
   // Filter posts
   const filteredPosts = displayPosts.filter(post => {
     const searchLower = searchTerm.toLowerCase();
     const contentMatch = post.content.toLowerCase().includes(searchLower);
     const userMatch = post.user.name.toLowerCase().includes(searchLower);
+    const postDate = new Date(post.postDate).toISOString().split('T')[0];
+    const dateMatch = dateFilter === '' || postDate === dateFilter;
     const locationMatch = locationFilter === '' || post.location === locationFilter;
     const categoryMatch = categoryFilter === '' || post.category === categoryFilter;
     const statusMatch = statusFilter === '' || post.status === statusFilter;
     
-    return (contentMatch || userMatch) && locationMatch && categoryMatch && statusMatch;
+    return (contentMatch || userMatch) && dateMatch && locationMatch && categoryMatch && statusMatch;
   }).sort((a, b) => {
     const getValue = (post: Post, field: string) => {
       switch (field) {
@@ -126,13 +154,19 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
     if (!selectedPostForNotification) return;
     
     try {
-      // Update post status to warned
-      await updatePostStatus(selectedPostForNotification.id, POST_STATUS.WARNED);
+      // Update post status to removed
+      await updatePostStatus(selectedPostForNotification.id, POST_STATUS.REMOVED);
+      
+      // Set post as warned
+      await updatePostWarningStatus(selectedPostForNotification.id, true);
+      
+      // Auto-resolve all related reports since post is warned
+      await resolveReportsByPostId(selectedPostForNotification.id);
       
       // Increment user warning count
       await incrementUserWarningCount(selectedPostForNotification.user.id);
       
-      console.log('Post warned successfully and user warning count incremented:', selectedPostForNotification.id);
+      console.log('Post warned successfully, isWarned set to true, and related reports resolved:', selectedPostForNotification.id);
       setShowNotificationModal(false);
       setSelectedPostForNotification(null);
     } catch (error) {
@@ -204,7 +238,7 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case POST_STATUS.ACTIVE: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case POST_STATUS.WARNED: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case POST_STATUS.EXPIRED: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
       case POST_STATUS.REMOVED: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
     }
@@ -274,7 +308,15 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
           </div>
           
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="Filter by date"
+            />
+            
             <select
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
@@ -305,7 +347,8 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
             >
               <option value="">All Status</option>
               <option value="active">Active</option>
-              <option value="warned">Warned</option>
+              <option value="expired">Expired</option>
+              <option value="removed">Removed</option>
             </select>
           </div>
         </div>
@@ -405,9 +448,16 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(post.status)}`}>
-                    {post.status}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(post.status)}`}>
+                      {post.status}
+                    </span>
+                    {post.isWarned && (
+                      <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300 rounded-full">
+                        ⚠️ Warned
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                   <button 
@@ -418,15 +468,6 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </button>
-                  <button 
-                    onClick={() => handleWarn(post.id)}
-                    className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300 p-1"
-                    title="Warn"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
                   </button>
                   <button 
@@ -534,7 +575,6 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
         post={selectedPost}
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
-        onWarn={handleWarn}
         onRemove={handleRemove}
       />
       

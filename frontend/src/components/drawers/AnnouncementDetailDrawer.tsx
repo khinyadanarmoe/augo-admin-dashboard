@@ -39,9 +39,9 @@ export default function AnnouncementDetailDrawer({ announcement, isOpen, onClose
       <div className="fixed inset-0 z-40" onClick={onClose} />
       
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-96 bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col">
+      <div className="fixed right-0 top-0 h-full w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Announcement Details</h2>
           <button
             onClick={onClose}
@@ -54,58 +54,75 @@ export default function AnnouncementDetailDrawer({ announcement, isOpen, onClose
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
-          {/* Title and ID */}
-          <div>
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                {announcement.title}
-              </h3>
-           
-            
-            </div>
-            {announcement.isUrgent && (
-              <span className="inline-block px-2 py-1 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 rounded-full">
-                ⚠️ Urgent
-              </span>
-            )}
-          </div>
-
+        <div className="p-4 flex-1 overflow-y-auto">
+          {/* Announcer Info Card - Same style as User Management */}
           {announcement.createdByUID && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Created By
-                </label>
-                <p className="text-xs text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded font-mono">
-                  Name: {announcement.createdByName || 'N/A'} 
-                </p>
-                <p className="text-xs text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded font-mono">
-                  Email: {announcement.createdByEmail || 'N/A'} 
-                </p>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Department
-              </label>
-              <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                {announcement.department}
-              </p>
-            </div>
-
-          {/* Content */}
-          <div className="space-y-4">
-            {announcement.body && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Body
-                </label>
-                <div className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-3 rounded-lg max-h-40 overflow-y-auto whitespace-pre-wrap">
-                  {announcement.body}
+            <div className="flex items-center space-x-4 mb-4">
+              {/* Profile Picture - Left Side */}
+              <div className="relative shrink-0">
+                <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                  <span className="text-xl font-bold text-purple-600 dark:text-purple-300">
+                    {announcement.createdByName ? announcement.createdByName.split(' ').map(n => n[0]).join('') : 'A'}
+                  </span>
                 </div>
               </div>
-            )}
+              
+              {/* Announcer Info - Right Side */}
+              <div className="flex-1 min-w-0 h-20 flex flex-col justify-center">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                  {announcement.createdByName || 'N/A'}
+                </h3>
+                
+                {/* Basic Details */}
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">Email:</span>
+                    <span className="text-gray-900 dark:text-white text-right truncate max-w-[200px]">
+                      {announcement.createdByEmail || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">Department:</span>
+                    <span className="text-gray-900 dark:text-white">
+                      {announcement.department}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Title */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Title
+            </label>
+            <div className="relative bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+              <h3 className="text-base font-medium text-gray-900 dark:text-white">
+                {announcement.title}
+              </h3>
+              {announcement.isUrgent && (
+                <span className="absolute bottom-2 right-2 text-xs font-medium text-red-600 dark:text-red-400">
+                  Urgent
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Body */}
+          {announcement.body && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Body
+              </label>
+              <div className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-3 rounded-lg max-h-40 overflow-y-auto whitespace-pre-wrap">
+                {announcement.body}
+              </div>
+            </div>
+          )}
+
+          {/* Other Details */}
+          <div className="space-y-4 mb-6">
             
             
 
@@ -168,18 +185,6 @@ export default function AnnouncementDetailDrawer({ announcement, isOpen, onClose
                 </label>
                 <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
                   {announcement.views}
-                </p>
-              </div>
-            )}
-
-            
-            {announcement.createdByName && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Created By Name
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                  {announcement.createdByName}
                 </p>
               </div>
             )}

@@ -5,7 +5,7 @@ interface PendingAnnouncement {
   title: string;
   content: string;
   author: string;
-  type: 'system' | 'maintenance' | 'feature' | 'general';
+  type: string;
   priority: 'low' | 'medium' | 'high';
   submittedAt: string;
   scheduledFor?: string;
@@ -48,7 +48,8 @@ export default function PendingAnnouncementApprovals({ announcements }: PendingA
     }
   ];
 
-  const displayAnnouncements = announcements || sampleAnnouncements;
+  // Use provided announcements, or if undefined use samples, but if empty array show empty state
+  const displayAnnouncements = announcements !== undefined ? announcements : sampleAnnouncements;
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -83,19 +84,35 @@ export default function PendingAnnouncementApprovals({ announcements }: PendingA
           <div key={announcement.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                  {announcement.title}
-                </h4>
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                    {announcement.title}
+                  </h4>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(announcement.priority)}`}>
+                    {announcement.priority} priority
+                  </span>
+                </div>
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
                   {announcement.content}
                 </p>
               </div>
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(announcement.priority)}`}>
-                {announcement.priority} priority
-              </span>
+              <div className="flex items-center space-x-2 ml-4">
+                <button 
+                  onClick={() => handleApprove(announcement.id)}
+                  className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                >
+                  Approve
+                </button>
+                <button 
+                  onClick={() => handleReject(announcement.id)}
+                  className="px-3 py-1 text-xs font-medium bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                >
+                  Reject
+                </button>
+              </div>
             </div>
             
-            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-3">
+            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
               <div className="flex items-center space-x-4">
                 <span>By {announcement.author}</span>
                 <span className="capitalize">{announcement.type}</span>
@@ -104,24 +121,6 @@ export default function PendingAnnouncementApprovals({ announcements }: PendingA
               {announcement.scheduledFor && (
                 <span>Scheduled for {announcement.scheduledFor}</span>
               )}
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <button 
-                onClick={() => handleApprove(announcement.id)}
-                className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-              >
-                Approve
-              </button>
-              <button 
-                onClick={() => handleReject(announcement.id)}
-                className="px-3 py-1 text-xs font-medium bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-              >
-                Reject
-              </button>
-              <button className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                Edit
-              </button>
             </div>
           </div>
         ))}

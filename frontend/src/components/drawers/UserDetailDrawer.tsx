@@ -55,7 +55,8 @@ export default function UserDetailDrawer({ user, isOpen, onClose, onWarn, onBanT
           likes: data.likeCount || data.likes || 0,
           dislikes: data.dislikeCount || data.dislikes || 0,
           reportCount: data.reportCount || data.reports || 0,
-          status: data.status || 'active'
+          status: data.status || 'active',
+          isWarned: data.isWarned || false
         };
         posts.push(post);
       }
@@ -140,9 +141,9 @@ export default function UserDetailDrawer({ user, isOpen, onClose, onWarn, onBanT
       <div className="fixed inset-0 z-40" onClick={onClose} />
       
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+      <div className="fixed right-0 top-0 h-full w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">User Profile</h2>
           <button
             onClick={onClose}
@@ -155,7 +156,7 @@ export default function UserDetailDrawer({ user, isOpen, onClose, onWarn, onBanT
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto h-full">
+        <div className="p-4 flex-1 overflow-y-auto">
           {/* User Avatar and Basic Info - Left-Right Layout */}
           <div className="flex items-center space-x-4 mb-4">
             {/* Profile Picture - Left Side */}

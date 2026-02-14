@@ -45,7 +45,7 @@ export default function RecentReportsList({ reports }: RecentReportsListProps) {
     }
   ];
 
-  const displayReports = reports || sampleReports;
+  const displayReports = (reports || sampleReports).filter(r => r.status === 'pending');
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -58,10 +58,15 @@ export default function RecentReportsList({ reports }: RecentReportsListProps) {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Recent Reports</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Pending Reports</h3>
       
-      <div className="space-y-4">
-        {displayReports.map((report) => (
+      {displayReports.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-500 dark:text-gray-400">No pending reports</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {displayReports.map((report) => (
           <div key={report.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <div className="flex-1">
               <div className="flex items-start justify-between">
@@ -91,7 +96,8 @@ export default function RecentReportsList({ reports }: RecentReportsListProps) {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
       
       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
         <a 

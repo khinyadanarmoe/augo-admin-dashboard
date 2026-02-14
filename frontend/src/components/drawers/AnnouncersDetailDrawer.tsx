@@ -92,9 +92,9 @@ export default function AnnouncersDetailDrawer({
       <div className="fixed inset-0 z-40" onClick={onClose} />
       
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+      <div className="fixed right-0 top-0 h-full w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Announcer Profile</h2>
           <button
             onClick={onClose}
@@ -107,11 +107,11 @@ export default function AnnouncersDetailDrawer({
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto" style={{ height: 'calc(100vh - 80px)' }}>
+        <div className="p-4 flex-1 overflow-y-auto">
           {/* Announcer Avatar and Basic Info - Left-Right Layout */}
           <div className="flex items-center space-x-4 mb-4">
             {/* Profile Picture - Left Side */}
-            <div className="relative flex-shrink-0">
+            <div className="relative shrink-0">
               <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
                 <span className="text-xl font-bold text-purple-600 dark:text-purple-300">
                   {announcer.name.split(' ').map(n => n[0]).join('')}

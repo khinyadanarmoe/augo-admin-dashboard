@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { User, USER_STATUS, FACULTIES, UserStatus } from "@/types/export";
 import { fetchUsers, incrementUserWarningCount, updateUserStatus } from '@/lib/firestore/users';
+import { markUserPostsAsWarned } from '@/lib/firestore/posts';
+import { resolveReportsByPostIds } from '@/lib/firestore/reports';
 import UserDetailDrawer from '../drawers/UserDetailDrawer';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useAdminConfiguration } from '@/hooks/useAdminConfiguration';
 import { SearchIcon, EyeIcon, WarnIcon, BanIcon, UnbanIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from "@/components/ui/icons";
 
 interface UserTableProps {
@@ -11,6 +14,8 @@ interface UserTableProps {
 
 export default function UserTable({ users }: UserTableProps) {
   const { isAuthenticated, isLoading } = useAdminAuth();
+  const { config } = useAdminConfiguration();
+  const banThreshold = config?.banThreshold || 5;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [facultyFilter, setFacultyFilter] = useState("");
@@ -21,21 +26,31 @@ export default function UserTable({ users }: UserTableProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; userId: string; currentStatus: string; userName: string }>({ isOpen: false, userId: '', currentStatus: '', userName: '' });
 
   useEffect(() => {
     setLoading(true);
     fetchUsers()
-      .then(data => {
-        // Cast status to proper UserStatus type
+      .then(async (data) => {
         const users: User[] = data.map(user => ({
           ...user,
           status: user.status.toLowerCase() as UserStatus
         }));
+
+        // Auto-ban users whose warningCount >= banThreshold
+        const autoBanPromises = users
+          .filter(u => u.warningCount >= banThreshold && u.status !== USER_STATUS.BANNED)
+          .map(async (u) => {
+            await updateUserStatus(u.id, USER_STATUS.BANNED);
+            u.status = USER_STATUS.BANNED as UserStatus;
+          });
+        await Promise.all(autoBanPromises);
+
         setFetchedUsers(users);
       })
       .catch(err => console.error('Error fetching users:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [banThreshold]);
 
 
   const sampleUsers: User[] = [
@@ -153,19 +168,36 @@ export default function UserTable({ users }: UserTableProps) {
       // Increment warning count
       await incrementUserWarningCount(userId);
       
-      // Update user status to warning if not already banned
-      const user = displayUsers.find(u => u.id === userId);
-      if (user && user.status !== USER_STATUS.BANNED) {
-        await updateUserStatus(userId, USER_STATUS.WARNING);
+      // Mark all user's posts as warned and get their IDs
+      const warnedPostIds = await markUserPostsAsWarned(userId);
+      
+      // Resolve all reports for the user's posts
+      if (warnedPostIds.length > 0) {
+        await resolveReportsByPostIds(warnedPostIds);
       }
       
-      // Refresh users data to show updated warning count
+      // Refresh users data to get updated warning count
       setLoading(true);
       const updatedUsers = await fetchUsers();
-      setFetchedUsers(updatedUsers);
+      const users: User[] = updatedUsers.map(user => ({
+        ...user,
+        status: user.status.toLowerCase() as UserStatus
+      }));
+
+      // Auto-ban if warning count now exceeds threshold
+      const warnedUser = users.find(u => u.id === userId);
+      if (warnedUser && warnedUser.warningCount >= banThreshold && warnedUser.status !== USER_STATUS.BANNED) {
+        await updateUserStatus(userId, USER_STATUS.BANNED);
+        warnedUser.status = USER_STATUS.BANNED as UserStatus;
+      } else if (warnedUser && warnedUser.status !== USER_STATUS.BANNED) {
+        await updateUserStatus(userId, USER_STATUS.WARNING);
+        warnedUser.status = USER_STATUS.WARNING as UserStatus;
+      }
+
+      setFetchedUsers(users);
       setLoading(false);
       
-      console.log('User warned successfully:', userId);
+      console.log('User warned successfully, posts marked as warned, and related reports resolved:', userId);
     } catch (error) {
       console.error('Error warning user:', error);
       setError('Failed to warn user');
@@ -173,11 +205,22 @@ export default function UserTable({ users }: UserTableProps) {
   };
 
   const handleBanToggle = async (userId: string, currentStatus: string) => {
+    const user = displayUsers.find(u => u.id === userId);
+    setConfirmModal({
+      isOpen: true,
+      userId,
+      currentStatus,
+      userName: user?.name || 'this user'
+    });
+  };
+
+  const confirmBanToggle = async () => {
+    const { userId, currentStatus } = confirmModal;
+    setConfirmModal({ isOpen: false, userId: '', currentStatus: '', userName: '' });
     try {
       const newStatus = currentStatus === USER_STATUS.BANNED ? USER_STATUS.ACTIVE : USER_STATUS.BANNED;
       await updateUserStatus(userId, newStatus);
       
-      // Refresh users data to show updated status
       setLoading(true);
       const updatedUsers = await fetchUsers();
       setFetchedUsers(updatedUsers);
@@ -428,6 +471,41 @@ export default function UserTable({ users }: UserTableProps) {
           </div>
         </div>
       </div>
+
+      {/* Confirm Ban/Unban Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              {confirmModal.currentStatus === USER_STATUS.BANNED ? 'Unban User' : 'Ban User'}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              {confirmModal.currentStatus === USER_STATUS.BANNED
+                ? `Are you sure you want to unban ${confirmModal.userName}? They will be able to create posts again.`
+                : `Are you sure you want to ban ${confirmModal.userName}? They will no longer be able to create posts.`
+              }
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmModal({ isOpen: false, userId: '', currentStatus: '', userName: '' })}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBanToggle}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                  confirmModal.currentStatus === USER_STATUS.BANNED
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {confirmModal.currentStatus === USER_STATUS.BANNED ? 'Unban' : 'Ban'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* User Detail Drawer */}
       <UserDetailDrawer

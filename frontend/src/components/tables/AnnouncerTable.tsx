@@ -162,7 +162,7 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 max-w-full">
       {/* Search and Filters */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex flex-col space-y-4">
@@ -220,34 +220,45 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col className="w-16" /> {/* Profile */}
+            <col className="w-36" /> {/* Name */}
+            <col className="w-44" /> {/* Email */}
+            <col className="w-32" /> {/* Affiliation Name */}
+            <col className="w-28" /> {/* Type */}
+            <col className="w-20" /> {/* Status */}
+            <col className="w-32" /> {/* Total */}
+            <col className="w-28" /> {/* Date */}
+            <col className="w-20" /> {/* Actions */}
+          </colgroup>
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Profile
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Email
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Affiliation Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Type
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-2 py-y text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Total Announcements
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Joined Date
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                Joined
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -255,7 +266,7 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center">
+                <td colSpan={9} className="px-6 py-12 text-center">
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                     <span className="ml-3 text-gray-500 dark:text-gray-400">Loading announcers...</span>
@@ -264,15 +275,15 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
               </tr>
             ) : paginatedAnnouncers.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={9} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   No announcers found.
                 </td>
               </tr>
             ) : (
               paginatedAnnouncers.map((announcer: Announcer) => (
               <tr key={announcer.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600">
+                <td className="px-3 py-4 whitespace-nowrap">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600">
                     {announcer.profilePicture ? (
                       <img 
                         src={announcer.profilePicture} 
@@ -281,39 +292,41 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
                       />
                     ) : (
                       <div className="w-full h-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                        <span className="text-sm font-medium text-purple-600 dark:text-purple-300">
+                        <span className="text-xs font-medium text-purple-600 dark:text-purple-300">
                           {announcer.name.split(' ').map((n: string) => n[0]).join('')}
                         </span>
                       </div>
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-4">
                   <div className="flex items-center">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    <div className="truncate">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate" title={announcer.name}>
                         {announcer.name}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate" title={announcer.id}>
                         ID: {announcer.id}
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {announcer.email}
+                <td className="px-3 py-4 text-sm text-gray-900 dark:text-white">
+                  <div className="truncate" title={announcer.email}>
+                    {announcer.email}
+                  </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getAffiliationNameColor(announcer.affiliation_name)}`}>
+                <td className="px-3 py-4">
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full truncate inline-block max-w-full ${getAffiliationNameColor(announcer.affiliation_name)}`} title={announcer.affiliation_name}>
                     {announcer.affiliation_name}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded-full">
+                <td className="px-3 py-4">
+                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded-full truncate inline-block max-w-full" title={announcer.affiliation_type}>
                     {announcer.affiliation_type}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-4">
                   <button
                     onClick={() => handleStatusToggle(announcer)}
                     className={`px-2 py-1 text-xs font-medium rounded-full transition-colors hover:opacity-80 ${getStatusColor(announcer.status)}`}
@@ -322,27 +335,31 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
                     {announcer.status}
                   </button>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                <td className="px-3 py-4 text-center text-sm text-gray-900 dark:text-white">
                   {announcer.total_announcements}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {announcer.joined_date ? new Date(announcer.joined_date).toLocaleDateString() : 'No Date'}
+                <td className="px-3 py-4 text-sm text-gray-900 dark:text-white">
+                  <div className="truncate">
+                    {announcer.joined_date ? new Date(announcer.joined_date).toLocaleDateString() : 'No Date'}
+                  </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                  <button 
-                    onClick={() => handleView(announcer.id)}
-                    className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 p-1"
-                    title="View"
-                  >
-                    <EyeIcon className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleEdit(announcer.id)}
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-1"
-                    title="Edit"
-                  >
-                    <EditIcon className="w-4 h-4" />
-                  </button>
+                <td className="px-3 py-4 text-sm">
+                  <div className="flex space-x-1">
+                    <button 
+                      onClick={() => handleView(announcer.id)}
+                      className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 p-1"
+                      title="View"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleEdit(announcer.id)}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-1"
+                      title="Edit"
+                    >
+                      <EditIcon className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
               ))

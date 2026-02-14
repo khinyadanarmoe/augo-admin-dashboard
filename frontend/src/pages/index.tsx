@@ -3,17 +3,46 @@ import Head from "next/head";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import MetricCard from "@/components/dashboard/MetricCard";
-import UserActivityChart from "@/components/dashboard/UserActivityChart";
+import PostsOverTimeChart from "@/components/dashboard/PostsOverTimeChart";
 import PostCategoriesChart from "@/components/dashboard/PostCategoriesChart";
 import TopLocationsChart from "@/components/dashboard/TopLocationsChart";
 import TopPostsList from "@/components/dashboard/TopPostsList";
 import RecentReportsList from "@/components/dashboard/RecentReportsList";
 import PendingAnnouncementApprovals from "@/components/dashboard/PendingAnnouncementApprovals";
-import PendingAnnouncerApprovals from "@/components/dashboard/PendingAnnouncerApprovals";
+import RecentFlaggedUsers from "@/components/dashboard/RecentFlaggedUsers";
 import { Icons } from "@/utils/icons";
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
+import { useDashboard } from "@/hooks/useDashboard";
 
 function Home() {
+  const { data, loading, error, timeRange, changeTimeRange } = useDashboard();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-purple-50/40 dark:bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-purple-50/40 dark:bg-black flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -39,51 +68,55 @@ function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <MetricCard 
               title="Active Users" 
-              value="2,847" 
+              value={(data?.metrics.activeUsers || 0).toLocaleString()} 
               icon={<img src={Icons.users} alt="Users" className="w-6 h-6" />} 
               color="purple"
-              description="↑ 12% from last month"
+              description="Currently active"
             />
             <MetricCard 
               title="Total Posts" 
-              value="12,453" 
+              value={(data?.metrics.totalPosts || 0).toLocaleString()} 
               icon={<img src={Icons.posts} alt="Posts" className="w-6 h-6" />} 
               color="blue"
-              description="↑ 8% from last month"
+              description="All time posts"
             />
             <MetricCard 
               title="Pending Reports" 
-              value="23" 
+              value={(data?.metrics.pendingReports || 0).toLocaleString()} 
               icon={<img src={Icons.reports} alt="Reports" className="w-6 h-6" />} 
               color="orange"
               description="Needs attention"
             />
             <MetricCard 
-              title="Active Announcements" 
-              value="8" 
+              title="Pending Announcements" 
+              value={(data?.metrics.pendingAnnouncements || 0).toLocaleString()} 
               icon={<img src={Icons.announcements} alt="Announcements" className="w-6 h-6" />} 
               color="green"
-              description="Currently live"
+              description="Awaiting approval"
             />
           </div>
 
           {/* Charts and Analytics */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <UserActivityChart />
-            <PendingAnnouncerApprovals />
+            <PostsOverTimeChart 
+              data={data?.postsOverTime} 
+              timeRange={timeRange}
+              onTimeRangeChange={changeTimeRange}
+            />
+            <PendingAnnouncementApprovals announcements={data?.pendingAnnouncements} />
           </div>
 
           {/* Secondary Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <TopLocationsChart />
-            <PostCategoriesChart />
-            <TopPostsList />
+            <TopLocationsChart data={data?.topLocations} />
+            <PostCategoriesChart data={data?.postCategories} />
+            <TopPostsList posts={data?.topPosts} />
           </div>
 
-          {/* Reports and Approvals */}
+          {/* Reports and User Reviews */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <RecentReportsList />
-            <PendingAnnouncementApprovals />
+            <RecentFlaggedUsers users={data?.recentFlaggedUsers} />
+            <RecentReportsList reports={data?.recentReports} />
           </div>
         </main>
 

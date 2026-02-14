@@ -71,7 +71,7 @@ export default function NotificationBell({ className = '' }: NotificationBellPro
       const processUrgentPosts = () => {
         const filteredUrgentPosts = posts.filter(post => 
           shouldMarkPostAsUrgent(post.reportCount) && 
-          post.status !== 'warned' && 
+          post.status !== 'expired' && 
           post.status !== 'removed'
         );
         setUrgentPosts(filteredUrgentPosts);

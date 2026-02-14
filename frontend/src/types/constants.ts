@@ -11,7 +11,7 @@ export type UserStatus = typeof USER_STATUS[keyof typeof USER_STATUS];
 // Post status constants
 export const POST_STATUS = {
   ACTIVE: 'active',
-  WARNED: 'warned',
+  EXPIRED: 'expired',
   REMOVED: 'removed'
 } as const;
 

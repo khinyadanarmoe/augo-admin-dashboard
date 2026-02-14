@@ -116,6 +116,58 @@ export const updateReportStatus = async (reportId: string, status: string): Prom
 };
 
 /**
+ * Resolve all reports for a specific post (when post is warned)
+ */
+export const resolveReportsByPostId = async (postId: string): Promise<void> => {
+  try {
+    const reportsCollection = collection(db, 'reports');
+    const q = query(reportsCollection, where('postId', '==', postId));
+    const snapshot = await getDocs(q);
+    
+    const updatePromises = snapshot.docs.map(doc => 
+      updateDoc(doc.ref, {
+        status: 'resolved',
+        updatedAt: new Date().toISOString()
+      })
+    );
+    
+    await Promise.all(updatePromises);
+  } catch (error) {
+    console.error('Error resolving reports by postId:', error);
+    throw error;
+  }
+};
+
+/**
+ * Resolve all reports for multiple posts (when user is warned)
+ */
+export const resolveReportsByPostIds = async (postIds: string[]): Promise<void> => {
+  try {
+    const reportsCollection = collection(db, 'reports');
+    
+    // Process in batch to avoid Firebase limitations
+    const batchSize = 10;
+    for (let i = 0; i < postIds.length; i += batchSize) {
+      const batchPostIds = postIds.slice(i, i + batchSize);
+      const q = query(reportsCollection, where('postId', 'in', batchPostIds));
+      const snapshot = await getDocs(q);
+      
+      const updatePromises = snapshot.docs.map(doc => 
+        updateDoc(doc.ref, {
+          status: 'resolved',
+          updatedAt: new Date().toISOString()
+        })
+      );
+      
+      await Promise.all(updatePromises);
+    }
+  } catch (error) {
+    console.error('Error resolving reports by postIds:', error);
+    throw error;
+  }
+};
+
+/**
  * Get urgent reports (high report count)
  */
 export const getUrgentReports = async (threshold: number = 5): Promise<Report[]> => {
