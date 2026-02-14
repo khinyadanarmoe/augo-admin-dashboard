@@ -46,7 +46,7 @@ export type AnnouncementStatus = typeof ANNOUNCEMENT_STATUS[keyof typeof ANNOUNC
 
 // Announcer affiliation types
 export const AFFILIATION_TYPES = {
-  STUDENT_ORG: 'student org',
+  STUDENT_ORG: 'student_org',
   FACULTY: 'faculty',
   OFFICE: 'office'
 } as const;
@@ -61,14 +61,56 @@ export const ANNOUNCER_STATUS = {
 
 export type AnnouncerStatus = typeof ANNOUNCER_STATUS[keyof typeof ANNOUNCER_STATUS];
 
-// Faculties
+// Affiliation Types
+export const AFFILIATION_TYPE = {
+  FACULTY: 'Faculty',
+  OFFICE: 'Office',
+  STUDENT_ORG: 'Student Organization'
+} as const;
+
+// Specific Affiliations by Type
+export const AFFILIATIONS = {
+  Faculty: [
+    'Architecture and Design',
+    'Arts',
+    'Biotechnology',
+    'Communication Arts',
+    'Engineering and Computer Science',
+    'Law',
+    'Management and Economics',
+    'Music',
+    'Nursing Science'
+  ],
+  Office: [
+    'Career Services',
+    'Emergency',
+    'Registrar',
+    'Student Affairs',
+    'Study Abroad'
+  ],
+  'Student Organization': [
+    'Accounting Committee',
+    'AIESEC',
+    'Art Committee',
+    'AUISC',
+    'AUMSC',
+    'AUSO',
+    'DBM Committee',
+    'VMES Committee'
+  ]
+} as const;
+
+// Legacy Faculties (for backward compatibility)
 export const FACULTIES = {
-  VMES: 'VMES',
-  BUSINESS: 'Business',
-  ENGINEERING: 'Engineering',
-  MEDICINE: 'Medicine',
-  LAW: 'Law',
+  ARCHITECTURE_DESIGN: 'Architecture and Design',
   ARTS: 'Arts',
+  BIOTECHNOLOGY: 'Biotechnology',
+  COMMUNICATION_ARTS: 'Communication Arts',
+  ENGINEERING_CS: 'Engineering and Computer Science',
+  LAW: 'Law',
+  MANAGEMENT_ECONOMICS: 'Management and Economics',
+  MUSIC: 'Music',
+  NURSING: 'Nursing Science',
   ALL: 'All'
 } as const;
 
@@ -81,7 +123,6 @@ export const LOCATIONS = {
   SR: 'SR',
   LIBRARY: 'Library',
   CANTEEN: 'Canteen',
-  PARKING_LOT: 'Parking Lot',
   MSME: 'MSME',
   MSE: 'MSE',
   VMES: 'VMES',
@@ -105,13 +146,13 @@ export const POST_CATEGORIES = {
 
 // Content topics for announcements
 export const CONTENT_TOPICS = [
-  'Exam Schedule',
-  'Workshop',
-  'Career Fair',
-  'Holiday Notice',
   'Academic',
-  'Event',
-  'Policy'
+  'Registration & Finance',
+  'Events',
+  'Career',
+  'Scholarship works',
+  'Administrative',
+  'Emergency & Safety'
 ] as const;
 
 // Sort directions

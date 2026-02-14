@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
 import { addAnnouncer, updateAnnouncer, updateAnnouncerProfilePicture } from "@/lib/firestore/announcers";
+import { fetchAffiliations, addAffiliation, type AffiliationData } from "@/lib/firestore/affiliations";
 import { AFFILIATION_TYPES } from "@/types/export";
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 import bcrypt from "bcryptjs";
@@ -36,29 +37,110 @@ function AddAnnouncer() {
   });
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCustomAffiliation, setIsCustomAffiliation] = useState(false);
+  const [customAffiliationName, setCustomAffiliationName] = useState('');
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [affiliations, setAffiliations] = useState<AffiliationData[]>([]);
+  const [loadingAffiliations, setLoadingAffiliations] = useState(true);
+
+  // Load affiliations from Firestore
+  useEffect(() => {
+    const loadAffiliations = async () => {
+      try {
+        const data = await fetchAffiliations();
+        setAffiliations(data);
+      } catch (error) {
+        console.error('Error loading affiliations:', error);
+      } finally {
+        setLoadingAffiliations(false);
+      }
+    };
+    loadAffiliations();
+  }, []);
+
+  // Reset affiliation name when type changes (but not on initial load)
+  useEffect(() => {
+    if (formData.affiliation_type && !isInitialLoad) {
+      setFormData(prev => ({ ...prev, affiliation_name: '' }));
+      setIsCustomAffiliation(false);
+      setCustomAffiliationName('');
+    }
+  }, [formData.affiliation_type]);
 
   // Load data when in edit mode
   useEffect(() => {
     if (isEditMode && query.id) {
+      const affiliationType = (query.affiliation_type as string) || '';
+      const affiliationName = (query.affiliation_name as string) || '';
+      
       setFormData({
         name: (query.name as string) || '',
         email: (query.email as string) || '',
-        affiliation_type: (query.affiliation_type as string) || '',
-        affiliation_name: (query.affiliation_name as string) || '',
+        affiliation_type: affiliationType,
+        affiliation_name: affiliationName,
         role: (query.role as string) || '',
         password: '', // Don't populate password in edit mode
         phone: (query.phone as string) || '',
         profilePicture: null
       });
+
+      // Check if affiliation name is custom (not in loaded list)
+      if (affiliationType && affiliationName) {
+        // Wait for affiliations to load
+        const checkAffiliation = () => {
+          const affiliationsList = affiliations.filter(a => a.type === affiliationType);
+          const isInList = affiliationsList.some(a => a.name === affiliationName);
+          
+          if (!isInList && affiliationName) {
+            setIsCustomAffiliation(true);
+            setCustomAffiliationName(affiliationName);
+          }
+        };
+        
+        if (affiliations.length > 0) {
+          checkAffiliation();
+        } else {
+          // Wait for affiliations to load
+          const interval = setInterval(() => {
+            if (affiliations.length > 0) {
+              checkAffiliation();
+              clearInterval(interval);
+            }
+          }, 100);
+        }
+      }
+
+      setIsInitialLoad(false);
+    } else {
+      setIsInitialLoad(false);
     }
   }, [isEditMode, query]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Handle affiliation name selection
+    if (name === 'affiliation_name') {
+      if (value === '__custom__') {
+        setIsCustomAffiliation(true);
+        setFormData(prev => ({ ...prev, affiliation_name: '' }));
+      } else {
+        setIsCustomAffiliation(false);
+        setCustomAffiliationName('');
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handleCustomAffiliationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomAffiliationName(value);
+    setFormData(prev => ({ ...prev, affiliation_name: value }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,6 +250,20 @@ function AddAnnouncer() {
         alert('Password is required');
         setIsLoading(false);
         return;
+      }
+
+      // Save custom affiliation to Firestore if it's a new one
+      if (isCustomAffiliation && formData.affiliation_name) {
+        try {
+          await addAffiliation(formData.affiliation_name, formData.affiliation_type as any);
+          // Reload affiliations
+          const updatedAffiliations = await fetchAffiliations();
+          setAffiliations(updatedAffiliations);
+          console.log('Custom affiliation saved:', formData.affiliation_name);
+        } catch (error) {
+          console.error('Error saving custom affiliation:', error);
+          // Continue even if saving affiliation fails
+        }
       }
 
       if (isEditMode && query.id) {
@@ -405,15 +501,62 @@ function AddAnnouncer() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Affiliation Name *
                   </label>
-                  <input
-                    type="text"
-                    name="affiliation_name"
-                    value={formData.affiliation_name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="e.g., Computer Science Department, AU Student Union, Registration Office"
-                  />
+                  {!isCustomAffiliation ? (
+                    <select
+                      name="affiliation_name"
+                      value={formData.affiliation_name}
+                      onChange={handleInputChange}
+                      required
+                      disabled={!formData.affiliation_type || loadingAffiliations}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {loadingAffiliations ? 'Loading...' : 
+                         formData.affiliation_type ? 'Select Affiliation' : 'Select Type First'}
+                      </option>
+                      {formData.affiliation_type && affiliations
+                        .filter(a => a.type === formData.affiliation_type)
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((affiliation) => (
+                          <option key={affiliation.name} value={affiliation.name}>
+                            {affiliation.name}
+                          </option>
+                        ))
+                      }
+                      {formData.affiliation_type && (
+                        <option value="__custom__" className="font-semibold text-purple-600 dark:text-purple-400">
+                          + Add New Affiliation
+                        </option>
+                      )}
+                    </select>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={customAffiliationName}
+                          onChange={handleCustomAffiliationChange}
+                          required
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          placeholder="Enter new affiliation name"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomAffiliation(false);
+                            setCustomAffiliationName('');
+                            setFormData(prev => ({ ...prev, affiliation_name: '' }));
+                          }}
+                          className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        This new affiliation will be saved to the system
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Role */}

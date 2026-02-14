@@ -10,13 +10,14 @@ import { SearchIcon, EyeIcon, WarnIcon, BanIcon, UnbanIcon, ChevronLeftIcon, Che
 
 interface UserTableProps {
   users?: User[];
+  initialSearchTerm?: string;
 }
 
-export default function UserTable({ users }: UserTableProps) {
+export default function UserTable({ users, initialSearchTerm = "" }: UserTableProps) {
   const { isAuthenticated, isLoading } = useAdminAuth();
   const { config } = useAdminConfiguration();
   const banThreshold = config?.banThreshold || 5;
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [statusFilter, setStatusFilter] = useState("");
   const [facultyFilter, setFacultyFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,6 +52,13 @@ export default function UserTable({ users }: UserTableProps) {
       .catch(err => console.error('Error fetching users:', err))
       .finally(() => setLoading(false));
   }, [banThreshold]);
+
+  // Update search term when initialSearchTerm changes
+  useEffect(() => {
+    if (initialSearchTerm) {
+      setSearchTerm(initialSearchTerm);
+    }
+  }, [initialSearchTerm]);
 
 
   const sampleUsers: User[] = [

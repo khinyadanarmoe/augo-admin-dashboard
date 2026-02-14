@@ -72,6 +72,14 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
+    // Affiliations Collection
+    match /affiliations/{affiliationId} {
+      // Anyone can read affiliations (needed for dropdowns)
+      allow read: if true;
+      // Only admins can create/update/delete affiliations
+      allow write: if isAdmin();
+    }
+    
     // Notifications Collection
     match /notifications/{notificationId} {
       // Users can read their own notifications

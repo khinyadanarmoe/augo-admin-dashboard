@@ -1,10 +1,22 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import UserTable from "@/components/tables/UserTable";
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 
 function Users() {
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Handle query parameters
+  useEffect(() => {
+    const { id } = router.query;
+    
+    if (id && typeof id === 'string') {
+      setSearchTerm(id);
+    }
+  }, [router.query]);
 
   return (
     <div className="min-h-screen bg-purple-50/40 dark:bg-black text-zinc-900 dark:text-zinc-50">
@@ -21,7 +33,7 @@ function Users() {
             <NotificationBell className="group" />
           </header>
 
-          <UserTable />
+          <UserTable initialSearchTerm={searchTerm} />
         </main>
       </div>
     </div>

@@ -13,13 +13,14 @@ import { auth } from '@/lib/firebase';
 
 interface PostTableProps {
   posts?: Post[];
+  initialSearchTerm?: string;
 }
 
-export default function PostTable({ posts: propPosts }: PostTableProps) {
+export default function PostTable({ posts: propPosts, initialSearchTerm = "" }: PostTableProps) {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
   const { config } = useAdminConfiguration();
   const [user] = useAuthState(auth);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [dateFilter, setDateFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -43,6 +44,13 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [selectedPostForNotification, setSelectedPostForNotification] = useState<Post | null>(null);
+
+  // Update search term when initialSearchTerm changes
+  useEffect(() => {
+    if (initialSearchTerm) {
+      setSearchTerm(initialSearchTerm);
+    }
+  }, [initialSearchTerm]);
 
   // Subscribe to Firestore posts
   useEffect(() => {
@@ -107,13 +115,14 @@ export default function PostTable({ posts: propPosts }: PostTableProps) {
     const searchLower = searchTerm.toLowerCase();
     const contentMatch = post.content.toLowerCase().includes(searchLower);
     const userMatch = post.user.name.toLowerCase().includes(searchLower);
+    const idMatch = post.id.toLowerCase().includes(searchLower);
     const postDate = new Date(post.postDate).toISOString().split('T')[0];
     const dateMatch = dateFilter === '' || postDate === dateFilter;
     const locationMatch = locationFilter === '' || post.location === locationFilter;
     const categoryMatch = categoryFilter === '' || post.category === categoryFilter;
     const statusMatch = statusFilter === '' || post.status === statusFilter;
     
-    return (contentMatch || userMatch) && dateMatch && locationMatch && categoryMatch && statusMatch;
+    return (contentMatch || userMatch || idMatch) && dateMatch && locationMatch && categoryMatch && statusMatch;
   }).sort((a, b) => {
     const getValue = (post: Post, field: string) => {
       switch (field) {

@@ -1,4 +1,5 @@
 import React from "react";
+import { useRouter } from "next/router";
 
 interface Post {
   id: string;
@@ -15,6 +16,7 @@ interface TopPostsListProps {
 }
 
 export default function TopPostsList({ posts }: TopPostsListProps) {
+  const router = useRouter();
   const samplePosts: Post[] = [
     {
       id: "1",
@@ -110,6 +112,10 @@ export default function TopPostsList({ posts }: TopPostsListProps) {
 
   const displayPosts = (posts || samplePosts).slice().sort((a, b) => b.likes - a.likes);
 
+  const handlePostClick = (id: string) => {
+    router.push(`/posts?id=${id}`);
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Top 10 Posts by Likes</h3>
@@ -121,7 +127,11 @@ export default function TopPostsList({ posts }: TopPostsListProps) {
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {displayPosts.map((post, index) => (
-          <div key={post.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+          <div 
+            key={post.id} 
+            className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+            onClick={() => handlePostClick(post.id)}
+          >
             <div className="flex items-center justify-center w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full text-xs font-medium text-purple-600 dark:text-purple-300 shrink-0">
               {index + 1}
             </div>

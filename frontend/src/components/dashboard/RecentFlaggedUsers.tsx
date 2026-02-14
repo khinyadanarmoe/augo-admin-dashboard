@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useRouter } from "next/router";
 
 export interface FlaggedUser {
   id: string;
@@ -16,6 +17,7 @@ interface RecentFlaggedUsersProps {
 type TimePeriod = 7 | 30 | 90;
 
 export default function RecentFlaggedUsers({ users }: RecentFlaggedUsersProps) {
+  const router = useRouter();
   const [period, setPeriod] = useState<TimePeriod>(7);
 
   const allUsers = users || [];
@@ -29,6 +31,10 @@ export default function RecentFlaggedUsers({ users }: RecentFlaggedUsersProps) {
     7: '7 Days',
     30: '30 Days',
     90: '90 Days',
+  };
+
+  const handleUserClick = (id: string) => {
+    router.push(`/users?id=${id}`);
   };
 
   return (
@@ -66,7 +72,8 @@ export default function RecentFlaggedUsers({ users }: RecentFlaggedUsersProps) {
         {filteredUsers.map((user) => (
           <div
             key={user.id}
-            className="flex items-start justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            className="flex items-start justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+            onClick={() => handleUserClick(user.id)}
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-1">

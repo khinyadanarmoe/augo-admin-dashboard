@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { Announcement, ANNOUNCEMENT_STATUS, FACULTIES, LOCATIONS, CONTENT_TOPICS } from "@/types/export";
+import { Announcement, ANNOUNCEMENT_STATUS, AFFILIATION_TYPE, AFFILIATIONS, CONTENT_TOPICS } from "@/types/export";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { fetchAnnouncements } from "@/lib/firestore/announcements";
 import AnnouncementDetailDrawer from "@/components/drawers/AnnouncementDetailDrawer";
 
 interface AnnouncementTableProps {
   announcements?: Announcement[];
+  initialSearchTerm?: string;
 }
 
-export default function AnnouncementTable({ announcements }: AnnouncementTableProps) {
+export default function AnnouncementTable({ announcements, initialSearchTerm = "" }: AnnouncementTableProps) {
   const { isAuthenticated, isLoading } = useAdminAuth();
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [dateFilter, setDateFilter] = useState("");
-  const [facultyFilter, setFacultyFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
+  const [affiliationType, setAffiliationType] = useState("");
+  const [affiliationSpecific, setAffiliationSpecific] = useState("");
   const [topicFilter, setTopicFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -21,6 +23,11 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
   const [loading, setLoading] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; announcementId: string; title: string }>({ 
+    isOpen: false, 
+    announcementId: '', 
+    title: '' 
+  });
 
   useEffect(() => {
     setLoading(true);
@@ -32,6 +39,61 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
       .catch(err => console.error('Error fetching announcements:', err))
       .finally(() => setLoading(false));
   }, []);
+
+  // Update search term when initialSearchTerm changes
+  useEffect(() => {
+    if (initialSearchTerm) {
+      setSearchTerm(initialSearchTerm);
+    }
+  }, [initialSearchTerm]);
+
+  // Reset specific affiliation when type changes
+  useEffect(() => {
+    setAffiliationSpecific("");
+  }, [affiliationType]);
+
+  // Auto-expire announcements past their end date
+  useEffect(() => {
+    const autoExpireAnnouncements = async () => {
+      if (fetchedAnnouncements.length === 0) return;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of day
+
+      const expiredAnnouncements = fetchedAnnouncements.filter(announcement => {
+        if (announcement.status === 'expired' || announcement.status === 'removed') return false;
+        
+        const endDate = new Date(announcement.endDate);
+        endDate.setHours(0, 0, 0, 0);
+        
+        return today > endDate;
+      });
+
+      if (expiredAnnouncements.length > 0) {
+        try {
+          const { updateAnnouncement } = await import('@/lib/firestore/announcements');
+          
+          // Update all expired announcements
+          await Promise.all(
+            expiredAnnouncements.map(announcement => 
+              updateAnnouncement(announcement.id, { status: 'expired' })
+            )
+          );
+          
+          console.log(`Auto-expired ${expiredAnnouncements.length} announcement(s)`);
+          
+          // Refresh data
+          const { fetchAnnouncements } = await import('@/lib/firestore/announcements');
+          const data = await fetchAnnouncements();
+          setFetchedAnnouncements(data);
+        } catch (err) {
+          console.error('Error auto-expiring announcements:', err);
+        }
+      }
+    };
+
+    autoExpireAnnouncements();
+  }, [fetchedAnnouncements]);
 
   // Handle loading and authentication states
   if (isLoading) {
@@ -51,9 +113,16 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
   // Filter announcements
   const filteredAnnouncements = displayAnnouncements.filter(announcement => {
     const startDate = new Date(announcement.startDate).toISOString().split('T')[0];
+    const searchLower = searchTerm.toLowerCase();
+    const titleMatch = searchTerm === '' || 
+      announcement.title.toLowerCase().includes(searchLower) || 
+      announcement.id.toLowerCase().includes(searchLower) ||
+      announcement.department?.toLowerCase().includes(searchLower);
+    const affiliationMatch = affiliationSpecific === '' || announcement.department === affiliationSpecific;
     return (
+      titleMatch &&
       (dateFilter === '' || startDate === dateFilter) &&
-      (facultyFilter === '' || announcement.department === facultyFilter) &&
+      affiliationMatch &&
       (statusFilter === '' || announcement.status === statusFilter)
     );
   });
@@ -83,10 +152,13 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
 
   const getTopicColor = (topic: string) => {
     const colors = {
-      'Exam Schedule': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-      'Workshop': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-      'Career Fair': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-      'Holiday Notice': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+      'Academic': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+      'Registration & Finance': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+      'Events': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+      'Career': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300',
+      'Scholarship works': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
+      'Administrative': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+      'Emergency & Safety': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
     };
     return colors[topic as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
   };
@@ -103,8 +175,33 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
   };
 
   const handleRemove = (announcementId: string) => {
-    console.log('Remove announcement:', announcementId);
-    // TODO: Implement announcement removal logic
+    const announcement = displayAnnouncements.find(a => a.id === announcementId);
+    if (announcement) {
+      setDeleteModal({ 
+        isOpen: true, 
+        announcementId: announcement.id, 
+        title: announcement.title 
+      });
+    }
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const { updateAnnouncement } = await import('@/lib/firestore/announcements');
+      await updateAnnouncement(deleteModal.announcementId, { status: 'removed' });
+      // Refresh data
+      const { fetchAnnouncements } = await import('@/lib/firestore/announcements');
+      const data = await fetchAnnouncements();
+      setFetchedAnnouncements(data);
+      setDeleteModal({ isOpen: false, announcementId: '', title: '' });
+    } catch (error) {
+      console.error('Error removing announcement:', error);
+      alert('Failed to remove announcement');
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteModal({ isOpen: false, announcementId: '', title: '' });
   };
 
   const handleApprove = async (announcementId: string) => {
@@ -143,7 +240,16 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       {/* Filters */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Search by title, ID, or affiliation name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <input
             type="date"
             value={dateFilter}
@@ -152,26 +258,30 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
           />
           
           <select
-            value={facultyFilter}
-            onChange={(e) => setFacultyFilter(e.target.value)}
+            value={affiliationType}
+            onChange={(e) => setAffiliationType(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
-            <option value="">All Faculties</option>
-            <option value="VMES">VMES</option>
-            <option value="Business">Business</option>
-            <option value="Engineering">Engineering</option>
-            <option value="All">All Faculties</option>
+            <option value="">All Types</option>
+            <option value="Faculty">Faculty</option>
+            <option value="Office">Office</option>
+            <option value="Student Organization">Student Organization</option>
           </select>
-          
+
           <select
-            value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
+            value={affiliationSpecific}
+            onChange={(e) => setAffiliationSpecific(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            disabled={!affiliationType}
           >
-            <option value="">All Locations</option>
-            <option value="Assumption University">Assumption University</option>
-            <option value="Bangkok Campus">Bangkok Campus</option>
-            <option value="All Campuses">All Campuses</option>
+            <option value="">
+              {affiliationType ? 'All ' + affiliationType : 'Select Type First'}
+            </option>
+            {affiliationType && AFFILIATIONS[affiliationType as keyof typeof AFFILIATIONS]?.map((affiliation) => (
+              <option key={affiliation} value={affiliation}>
+                {affiliation}
+              </option>
+            ))}
           </select>
           
           <select
@@ -179,11 +289,14 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
             onChange={(e) => setTopicFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
-            <option value="">All Topics</option>
-            <option value="Exam Schedule">Exam Schedule</option>
-            <option value="Workshop">Workshop</option>
-            <option value="Career Fair">Career Fair</option>
-            <option value="Holiday Notice">Holiday Notice</option>
+            <option value="">All Categories</option>
+            <option value="Academic">Academic</option>
+            <option value="Registration & Finance">Registration & Finance</option>
+            <option value="Events">Events</option>
+            <option value="Career">Career</option>
+            <option value="Scholarship works">Scholarship works</option>
+            <option value="Administrative">Administrative</option>
+            <option value="Emergency & Safety">Emergency & Safety</option>
           </select>
           
           <select
@@ -209,7 +322,7 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
                 Title
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Department
+                Affiliation
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Start Date
@@ -379,6 +492,46 @@ export default function AnnouncementTable({ announcements }: AnnouncementTablePr
         onApprove={handleApprove}
         onReject={handleReject}
       />
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center mb-4">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Remove Announcement</h3>
+              </div>
+            </div>
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Are you sure you want to remove this announcement? It will be marked as "removed" and hidden from active listings.
+              </p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 p-3 rounded">
+                {deleteModal.title}
+              </p>
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

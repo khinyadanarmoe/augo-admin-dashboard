@@ -5,6 +5,7 @@ import type { AnnouncerStatus } from "@/types/constants";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import AnnouncerDetailDrawer from "../drawers/AnnouncersDetailDrawer";
 import { fetchAnnouncers } from "@/lib/firestore/announcers";
+import { fetchAffiliations, type AffiliationData } from "@/lib/firestore/affiliations";
 import { SearchIcon, EyeIcon, EditIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from "@/components/ui/icons";
 
 interface AnnouncerTableProps {
@@ -25,6 +26,20 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
   const [selectedAnnouncer, setSelectedAnnouncer] = useState<Announcer | null>(null);
   const [fetchedAnnouncers, setFetchedAnnouncers] = useState<Announcer[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [affiliations, setAffiliations] = useState<AffiliationData[]>([]);
+
+  // Load affiliations from Firestore
+  useEffect(() => {
+    const loadAffiliations = async () => {
+      try {
+        const data = await fetchAffiliations();
+        setAffiliations(data);
+      } catch (error) {
+        console.error('Error loading affiliations:', error);
+      }
+    };
+    loadAffiliations();
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -48,8 +63,10 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
       .finally(() => setLoading(false));
   }, []);
 
-
- 
+  // Reset specific affiliation when type changes
+  useEffect(() => {
+    setAffiliationNameFilter("");
+  }, [affiliationTypeFilter]);
 
   // Handle loading and authentication states
   if (isLoading) {
@@ -197,22 +214,31 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
             >
               <option value="">All Types</option>
               <option value={AFFILIATION_TYPES.FACULTY}>Faculty</option>
-              <option value={AFFILIATION_TYPES.STUDENT_ORG}>Student Organization</option>
               <option value={AFFILIATION_TYPES.OFFICE}>Office</option>
+              <option value={AFFILIATION_TYPES.STUDENT_ORG}>Student Organization</option>
             </select>
             
             <select
               value={affiliationNameFilter}
               onChange={(e) => setAffiliationNameFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              disabled={!affiliationTypeFilter}
             >
-              <option value="">All Affiliations</option>
-              <option value="Academic Affairs">Academic Affairs</option>
-              <option value="Student Services">Student Services</option>
-              <option value="Research Department">Research Department</option>
-              <option value="Career Center">Career Center</option>
-              <option value="IT Department">IT Department</option>
-              <option value="VMES Committee">VMES Committee</option>
+              <option value="">
+                {affiliationTypeFilter === AFFILIATION_TYPES.FACULTY ? 'All Faculty' :
+                 affiliationTypeFilter === AFFILIATION_TYPES.OFFICE ? 'All Office' :
+                 affiliationTypeFilter === AFFILIATION_TYPES.STUDENT_ORG ? 'All Student Organizations' :
+                 'Select Type First'}
+              </option>
+              {affiliationTypeFilter && affiliations
+                .filter(a => a.type === affiliationTypeFilter)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((affiliation) => (
+                  <option key={affiliation.name} value={affiliation.name}>
+                    {affiliation.name}
+                  </option>
+                ))
+              }
             </select>
           </div>
         </div>

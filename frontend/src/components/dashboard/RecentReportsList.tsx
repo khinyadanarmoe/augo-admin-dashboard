@@ -1,4 +1,5 @@
 import React from "react";
+import { useRouter } from "next/router";
 
 interface Report {
   id: string;
@@ -15,6 +16,7 @@ interface RecentReportsListProps {
 }
 
 export default function RecentReportsList({ reports }: RecentReportsListProps) {
+  const router = useRouter();
   const sampleReports: Report[] = [
     {
       id: "1",
@@ -56,6 +58,10 @@ export default function RecentReportsList({ reports }: RecentReportsListProps) {
     }
   };
 
+  const handleReportClick = (id: string) => {
+    router.push(`/reports?id=${id}`);
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Pending Reports</h3>
@@ -67,7 +73,11 @@ export default function RecentReportsList({ reports }: RecentReportsListProps) {
       ) : (
         <div className="space-y-4">
           {displayReports.map((report) => (
-          <div key={report.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+          <div 
+            key={report.id} 
+            className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+            onClick={() => handleReportClick(report.id)}
+          >
             <div className="flex-1">
               <div className="flex items-start justify-between">
                 <div className="flex-1">

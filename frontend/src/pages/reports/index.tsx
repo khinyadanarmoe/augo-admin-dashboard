@@ -12,9 +12,13 @@ function Reports() {
 
   // Handle query parameters from notification bell
   useEffect(() => {
-    const { filterBy, postId, highlight, autoScroll } = router.query;
+    const { filterBy, postId, highlight, autoScroll, id } = router.query;
     
-    if (filterBy === 'postId' && postId && typeof postId === 'string') {
+    // Handle both old format (filterBy + postId) and new format (id)
+    if (id && typeof id === 'string') {
+      setSearchTerm(id);
+      setHighlightPostId(id);
+    } else if (filterBy === 'postId' && postId && typeof postId === 'string') {
       // Set search term to the postId
       setSearchTerm(postId);
     }
@@ -24,10 +28,11 @@ function Reports() {
       setHighlightPostId(highlight);
     }
     
-    if (autoScroll === 'true' && highlight) {
+    if (autoScroll === 'true' && (highlight || id)) {
       // Scroll to the highlighted post after a brief delay
+      const scrollId = highlight || id;
       setTimeout(() => {
-        const element = document.getElementById(`report-${highlight}`);
+        const element = document.getElementById(`report-${scrollId}`);
         if (element) {
           element.scrollIntoView({ 
             behavior: 'smooth', 

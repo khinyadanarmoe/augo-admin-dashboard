@@ -1,4 +1,5 @@
 import React from "react";
+import { useRouter } from "next/router";
 
 interface PendingAnnouncement {
   id: string;
@@ -16,6 +17,7 @@ interface PendingAnnouncementApprovalsProps {
 }
 
 export default function PendingAnnouncementApprovals({ announcements }: PendingAnnouncementApprovalsProps) {
+  const router = useRouter();
   const sampleAnnouncements: PendingAnnouncement[] = [
     {
       id: "1",
@@ -70,6 +72,10 @@ export default function PendingAnnouncementApprovals({ announcements }: PendingA
     console.log('Rejecting announcement:', id);
   };
 
+  const handleAnnouncementClick = (id: string) => {
+    router.push(`/announcements?id=${id}`);
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-6">
@@ -83,7 +89,7 @@ export default function PendingAnnouncementApprovals({ announcements }: PendingA
         {displayAnnouncements.map((announcement) => (
           <div key={announcement.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
             <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
+              <div className="flex-1 cursor-pointer" onClick={() => handleAnnouncementClick(announcement.id)}>
                 <div className="flex items-center gap-2 mb-1">
                   <h4 className="text-sm font-medium text-gray-900 dark:text-white">
                     {announcement.title}
@@ -98,13 +104,19 @@ export default function PendingAnnouncementApprovals({ announcements }: PendingA
               </div>
               <div className="flex items-center space-x-2 ml-4">
                 <button 
-                  onClick={() => handleApprove(announcement.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleApprove(announcement.id);
+                  }}
                   className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                 >
                   Approve
                 </button>
                 <button 
-                  onClick={() => handleReject(announcement.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleReject(announcement.id);
+                  }}
                   className="px-3 py-1 text-xs font-medium bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                 >
                   Reject
