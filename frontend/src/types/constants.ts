@@ -111,7 +111,6 @@ export const FACULTIES = {
   MANAGEMENT_ECONOMICS: 'Management and Economics',
   MUSIC: 'Music',
   NURSING: 'Nursing Science',
-  ALL: 'All'
 } as const;
 
 // Locations

@@ -69,7 +69,7 @@ export default function UserTable({ users, initialSearchTerm = "" }: UserTablePr
       nickname: "A",
       birthdate: "2002-05-15",
       email: "miss.a@au.edu",
-      faculty: FACULTIES.VMES,
+      faculty: FACULTIES.ENGINEERING_CS,
       status: USER_STATUS.ACTIVE,
       warningCount: 0,
       joinedAt: "2024-01-15"
@@ -81,7 +81,7 @@ export default function UserTable({ users, initialSearchTerm = "" }: UserTablePr
       nickname: "B",
       birthdate: "2002-03-22",
       email: "miss.b@au.edu",
-      faculty: FACULTIES.BUSINESS,
+      faculty: FACULTIES.MANAGEMENT_ECONOMICS,
       status: USER_STATUS.WARNING,
       warningCount: 1,
       joinedAt: "2024-01-18"
@@ -93,7 +93,7 @@ export default function UserTable({ users, initialSearchTerm = "" }: UserTablePr
       nickname: "C",
       birthdate: "2002-07-10",
       email: "miss.c@au.edu",
-      faculty: FACULTIES.ENGINEERING,
+      faculty: FACULTIES.ENGINEERING_CS,
       status: USER_STATUS.BANNED,
       warningCount: 3,
       joinedAt: "2024-01-20"
@@ -105,7 +105,7 @@ export default function UserTable({ users, initialSearchTerm = "" }: UserTablePr
       nickname: "D",
       birthdate: "2002-12-08",
       email: "miss.d@au.edu",
-      faculty: FACULTIES.MEDICINE,
+      faculty: FACULTIES.NURSING,
       status: USER_STATUS.ACTIVE,
       warningCount: 0,
       joinedAt: "2024-01-22"

@@ -38,3 +38,5 @@ lerna-debug.log*
 .DS_Store
 .AppleDouble
 .LSOverride
+.vercel
+.env*.local
