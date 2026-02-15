@@ -38,6 +38,11 @@ export default function Sidebar() {
       icon: Icons.announcers
     },
     { 
+      href: "/ar-models", 
+      label: "AR Models", 
+      icon: Icons.arModels
+    },
+    { 
       href: "/configuration", 
       label: "Configuration", 
       icon: Icons.settings

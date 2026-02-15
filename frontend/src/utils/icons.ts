@@ -5,6 +5,7 @@ export const Icons = {
     reports: "/icons/reports.png",
     announcers: "/icons/announcers.png",
     announcements: "/icons/announcements.png",
+    arModels: "/icons/ar-models.svg",
     logo: "/icons/logo.png", 
     settings: "/icons/settings.png",
 };

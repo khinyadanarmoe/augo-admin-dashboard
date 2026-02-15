@@ -448,7 +448,7 @@ export default function ReportTable({ highlightPostId, initialSearchTerm }: Repo
                 </td>
                 <td className="px-3 py-4 text-sm text-gray-900 dark:text-white">
                   <span className="flex items-center">
-                    <span className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${getReportCountColor(reportCountByPostId[report.postId] || report.reportCount)}`}></span>
+                    <span className={`w-2 h-2 rounded-full mr-2 shrink-0 ${getReportCountColor(reportCountByPostId[report.postId] || report.reportCount)}`}></span>
                     {reportCountByPostId[report.postId] || report.reportCount}
                   </span>
                 </td>

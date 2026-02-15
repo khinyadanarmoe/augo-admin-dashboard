@@ -39,7 +39,7 @@ export default function AnnouncementDetailDrawer({ announcement, isOpen, onClose
       <div className="fixed inset-0 z-40" onClick={onClose} />
       
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[500px] bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col">
+      <div className="fixed right-0 top-0 h-full w-125 bg-white dark:bg-gray-800 shadow-xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Announcement Details</h2>
@@ -77,7 +77,7 @@ export default function AnnouncementDetailDrawer({ announcement, isOpen, onClose
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                    <span className="text-gray-900 dark:text-white text-right truncate max-w-[200px]">
+                    <span className="text-gray-900 dark:text-white text-right truncate max-w-50">
                       {announcement.createdByEmail || 'N/A'}
                     </span>
                   </div>
