@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, doc, query, where, orderBy, limit, getDocs, getDoc, getCountFromServer, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { POST_CATEGORIES } from '@/types/constants';
 
 export interface DashboardMetrics {
   activeUsers: number;
@@ -89,11 +90,11 @@ export function useDashboard() {
 
   const changeTimeRange = async (newTimeRange: TimeRange) => {
     setTimeRange(newTimeRange);
-    
+
     try {
       setLoading(true);
       const postsOverTime = await fetchPostsOverTime(newTimeRange);
-      
+
       setData(prevData => {
         if (prevData) {
           return {
@@ -158,12 +159,12 @@ export function useDashboard() {
     fetchDashboardData();
   }, [timeRange]);
 
-  return { 
-    data, 
-    loading, 
-    error, 
-    timeRange, 
-    changeTimeRange 
+  return {
+    data,
+    loading,
+    error,
+    timeRange,
+    changeTimeRange
   };
 }
 
@@ -215,9 +216,9 @@ async function fetchRecentReports(): Promise<RecentReport[]> {
       orderBy('reportDate', 'desc'),
       limit(5)
     );
-    
+
     const snapshot = await getDocs(reportsQuery);
-    
+
     return snapshot.docs.map(doc => {
       const data = doc.data();
       const reportDate = data.reportDate?.toDate ? data.reportDate.toDate() : new Date(data.reportDate);
@@ -226,7 +227,7 @@ async function fetchRecentReports(): Promise<RecentReport[]> {
       const diffMins = Math.floor(diffMs / 60000);
       const diffHours = Math.floor(diffMs / 3600000);
       const diffDays = Math.floor(diffMs / 86400000);
-      
+
       let reportedAt = '';
       if (diffMins < 60) {
         reportedAt = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
@@ -260,15 +261,15 @@ async function fetchPendingAnnouncements(): Promise<PendingAnnouncement[]> {
       where('status', '==', 'pending'),
       limit(5)
     );
-    
+
     const snapshot = await getDocs(announcementsQuery);
-    
+
     console.log('Pending announcements fetched:', snapshot.size);
-    
+
     return snapshot.docs.map(doc => {
       const data = doc.data();
       console.log('Announcement data:', data);
-      
+
       // Handle both createdAt and submitedAt (note: misspelled in DB)
       const timestamp = data.submitedAt || data.createdAt;
       const createdAt = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -276,7 +277,7 @@ async function fetchPendingAnnouncements(): Promise<PendingAnnouncement[]> {
       const diffMs = now.getTime() - createdAt.getTime();
       const diffHours = Math.floor(diffMs / 3600000);
       const diffDays = Math.floor(diffMs / 86400000);
-      
+
       let submittedAt = '';
       if (diffHours < 1) {
         submittedAt = 'Just now';
@@ -297,8 +298,8 @@ async function fetchPendingAnnouncements(): Promise<PendingAnnouncement[]> {
       }
 
       // Format scheduled date if available
-      const scheduledFor = data.startDate ? 
-        new Date(data.startDate?.toDate ? data.startDate.toDate() : data.startDate).toLocaleString() : 
+      const scheduledFor = data.startDate ?
+        new Date(data.startDate?.toDate ? data.startDate.toDate() : data.startDate).toLocaleString() :
         undefined;
 
       return {
@@ -327,9 +328,9 @@ async function fetchTopPosts(): Promise<TopPost[]> {
       orderBy('likeCount', 'desc'),
       limit(10)
     );
-    
+
     const snapshot = await getDocs(postsQuery);
-    
+
     // Fetch user names for each post
     const postsWithUsers = await Promise.all(
       snapshot.docs.map(async (docRef) => {
@@ -338,7 +339,7 @@ async function fetchTopPosts(): Promise<TopPost[]> {
         const now = new Date();
         const diffMs = now.getTime() - postDate.getTime();
         const diffDays = Math.floor(diffMs / 86400000);
-        
+
         let publishedAt = '';
         if (diffDays === 0) {
           const diffHours = Math.floor(diffMs / 3600000);
@@ -388,35 +389,70 @@ async function fetchTopPosts(): Promise<TopPost[]> {
 
 async function fetchPostCategories(): Promise<PostCategory[]> {
   try {
-    const categories = ['casual', 'announcement', 'event', 'lost_found', 'complaint'];
+    // Fetch all posts and aggregate by category
+    const postsSnapshot = await getDocs(collection(db, 'posts'));
+
+    const categoryCounts: { [key: string]: number } = {};
+
+    postsSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const category = data.category || 'other';
+      categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    });
+
+    // Category name normalization: Firebase keys to display values
+    const categoryKeyToDisplay: { [key: string]: string } = {
+      'campus_life': POST_CATEGORIES.CAMPUS_LIFE,
+      'casual': POST_CATEGORIES.CASUAL,
+      'lost_and_found': POST_CATEGORIES.LOST_AND_FOUND,
+      'complaints': POST_CATEGORIES.COMPLAINTS,
+      'safety': POST_CATEGORIES.SAFETY,
+      'academic': POST_CATEGORIES.ACADEMIC,
+      'event': POST_CATEGORIES.EVENT,
+      'other': POST_CATEGORIES.OTHER,
+      // Also handle if they're already stored as display values
+      [POST_CATEGORIES.CAMPUS_LIFE]: POST_CATEGORIES.CAMPUS_LIFE,
+      [POST_CATEGORIES.CASUAL]: POST_CATEGORIES.CASUAL,
+      [POST_CATEGORIES.LOST_AND_FOUND]: POST_CATEGORIES.LOST_AND_FOUND,
+      [POST_CATEGORIES.COMPLAINTS]: POST_CATEGORIES.COMPLAINTS,
+      [POST_CATEGORIES.SAFETY]: POST_CATEGORIES.SAFETY,
+      [POST_CATEGORIES.ACADEMIC]: POST_CATEGORIES.ACADEMIC,
+      [POST_CATEGORIES.EVENT]: POST_CATEGORIES.EVENT,
+      [POST_CATEGORIES.OTHER]: POST_CATEGORIES.OTHER
+    };
+
     const categoryColors: { [key: string]: string } = {
-      casual: 'bg-blue-500',
-      announcement: 'bg-green-500',
-      event: 'bg-yellow-500',
-      lost_found: 'bg-purple-500',
-      complaint: 'bg-gray-500'
-    };
-    const categoryLabels: { [key: string]: string } = {
-      casual: 'Casual',
-      announcement: 'Announcements',
-      event: 'Events',
-      lost_found: 'Lost and Found',
-      complaint: 'Complaints'
+      [POST_CATEGORIES.CAMPUS_LIFE]: '#3B82F6',     // Blue
+      [POST_CATEGORIES.CASUAL]: '#10B981',          // Green
+      [POST_CATEGORIES.LOST_AND_FOUND]: '#F59E0B',  // Amber
+      [POST_CATEGORIES.COMPLAINTS]: '#EF4444',      // Red
+      [POST_CATEGORIES.SAFETY]: '#DC2626',          // Dark Red
+      [POST_CATEGORIES.ACADEMIC]: '#8B5CF6',        // Purple
+      [POST_CATEGORIES.EVENT]: '#EC4899',           // Pink
+      [POST_CATEGORIES.OTHER]: '#6B7280'            // Gray
     };
 
-    const counts = await Promise.all(
-      categories.map(async (category) => {
-        const q = query(collection(db, 'posts'), where('category', '==', category));
-        const snapshot = await getCountFromServer(q);
-        return {
-          name: categoryLabels[category] || category,
-          count: snapshot.data().count,
-          color: categoryColors[category] || 'bg-gray-500'
-        };
-      })
-    );
+    // Use POST_CATEGORIES constant for all categories
+    const allCategories = Object.values(POST_CATEGORIES);
 
-    return counts.sort((a, b) => b.count - a.count);
+    const result = allCategories.map(categoryName => {
+      // Find the count from Firebase (checking both normalized and potential formats)
+      let count = 0;
+      for (const [fbCategory, fbCount] of Object.entries(categoryCounts)) {
+        const normalizedName = categoryKeyToDisplay[fbCategory.toLowerCase()] || categoryKeyToDisplay[fbCategory];
+        if (normalizedName === categoryName) {
+          count += fbCount;
+        }
+      }
+
+      return {
+        name: categoryName,
+        count: count,
+        color: categoryColors[categoryName] || '#6B7280'
+      };
+    });
+
+    return result;
   } catch (error) {
     console.error('Error fetching post categories:', error);
     return [];
@@ -426,9 +462,9 @@ async function fetchPostCategories(): Promise<PostCategory[]> {
 async function fetchTopLocations(): Promise<LocationData[]> {
   try {
     const postsSnapshot = await getDocs(collection(db, 'posts'));
-    
+
     const locationCounts: { [key: string]: number } = {};
-    
+
     postsSnapshot.docs.forEach(doc => {
       const data = doc.data();
       const location = data.location || 'Unknown';
@@ -477,16 +513,16 @@ async function fetchRecentFlaggedUsers(): Promise<FlaggedUser[]> {
       collection(db, 'users'),
       where('warningCount', '>=', banThreshold)
     );
-    
+
     const snapshot = await getDocs(usersQuery);
-    
+
     return snapshot.docs.map(doc => {
       const data = doc.data();
-      
+
       // Use lastWarningDate or bannedAt or any available timestamp
       const timestamp = data.bannedAt || data.lastWarningDate || data.updatedAt;
       const flaggedDate = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp || Date.now());
-      
+
       // Format: "10 Nov 2026, 11:00 PM"
       const flaggedAt = flaggedDate.toLocaleString('en-GB', {
         day: 'numeric',
@@ -496,7 +532,7 @@ async function fetchRecentFlaggedUsers(): Promise<FlaggedUser[]> {
         minute: '2-digit',
         hour12: true
       });
-      
+
       return {
         id: doc.id,
         name: data.displayName || data.name || data.nickname || 'Unknown User',
@@ -516,22 +552,22 @@ async function fetchPostsOverTime(timeRange: TimeRange = '7 Days'): Promise<Post
   try {
     // Determine the number of days based on time range
     const days = timeRange === '7 Days' ? 7 : timeRange === '30 Days' ? 30 : 90;
-    
+
     // Get posts from the specified time range
     const daysAgo = new Date();
     daysAgo.setDate(daysAgo.getDate() - days);
-    
+
     const postsQuery = query(
       collection(db, 'posts'),
       where('date', '>=', Timestamp.fromDate(daysAgo)),
       orderBy('date', 'asc')
     );
-    
+
     const snapshot = await getDocs(postsQuery);
-    
+
     // Group posts by date
     const postsByDate: { [key: string]: number } = {};
-    
+
     // Initialize the specified number of days with 0 counts
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date();
@@ -539,7 +575,7 @@ async function fetchPostsOverTime(timeRange: TimeRange = '7 Days'): Promise<Post
       const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD format
       postsByDate[dateKey] = 0;
     }
-    
+
     // Count posts for each date
     snapshot.docs.forEach(doc => {
       const data = doc.data();
@@ -549,13 +585,13 @@ async function fetchPostsOverTime(timeRange: TimeRange = '7 Days'): Promise<Post
         postsByDate[dateKey]++;
       }
     });
-    
+
     // Convert to array format
     return Object.entries(postsByDate).map(([date, count]) => ({
       date,
       count
     })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    
+
   } catch (error) {
     console.error('Error fetching posts over time:', error);
     return [];
