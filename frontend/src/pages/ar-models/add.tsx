@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
 import { addARSpawn, updateARSpawn, ARSpawnData } from "@/lib/firestore/arSpawns";
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import dynamic from 'next/dynamic';
 
@@ -146,8 +146,8 @@ function AddARModel() {
     try {
       const storageRef = ref(storage, path);
       await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-      return downloadURL;
+      // Return storage path instead of URL
+      return path;
     } catch (error: any) {
       console.error('File upload error:', error);
       throw new Error(`Failed to upload file: ${error.message}`);

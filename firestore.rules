@@ -13,6 +13,12 @@ service cloud.firestore {
              request.auth.token.admin == true;
     }
     
+    // Helper function to check if user is announcer
+    function isAnnouncer() {
+      return isAuthenticated() && 
+             request.auth.token.announcer == true;
+    }
+    
     // Admin Configuration Collection
     match /admin_configuration/{document=**} {
       // Only authenticated admin users can read/write configuration
@@ -56,18 +62,19 @@ service cloud.firestore {
     match /announcements/{announcementId} {
       // Anyone can read approved announcements
       allow read: if resource.data.status == 'approved';
-      // Only authenticated users can create announcements
-      allow create: if isAuthenticated();
+      // Announcers can create, read, and update their own announcements
+      allow create: if isAnnouncer();
+      allow read, update: if isAnnouncer() && request.auth.uid == resource.data.announcerId;
       // Admins can do everything
       allow read, write: if isAdmin();
     }
     
     // Announcers Collection
     match /announcers/{announcerId} {
-      // Anyone can read approved announcers
-      allow read: if resource.data.status == 'approved';
-      // Only authenticated users can create announcer requests
-      allow create: if isAuthenticated();
+      // Anyone can read active announcers
+      allow read: if resource.data.status == 'active';
+      // Announcers can read and update their own profile
+      allow read, update: if isAnnouncer() && request.auth.uid == announcerId;
       // Admins can do everything
       allow read, write: if isAdmin();
     }

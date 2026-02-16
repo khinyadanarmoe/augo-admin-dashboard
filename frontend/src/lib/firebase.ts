@@ -2,6 +2,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 // Your Firebase config object
 const firebaseConfig = {
@@ -16,10 +17,11 @@ const firebaseConfig = {
 // Initialize Firebase (prevent multiple initialization)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Initialize Firebase Authentication, Firestore, and Storage
+// Initialize Firebase Authentication, Firestore, Storage, and Functions
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app);
 export default app;
 
 

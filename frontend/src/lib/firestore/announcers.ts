@@ -1,7 +1,8 @@
 import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, functions } from "@/lib/firebase";
 import { Announcer } from "@/types/export";
 import { ANNOUNCER_STATUS } from "@/types/constants";
+import { httpsCallable } from "firebase/functions";
 
 export async function fetchAnnouncers(): Promise<Announcer[]> {
     const snapshot = await getDocs(collection(db, "announcers"));
@@ -20,19 +21,39 @@ export interface NewAnnouncerData {
     affiliation_type: string;
     phone: string;
     role: string;
-    profilePicture?: string; // Optional
+    profilePicture?: string; // Optional - storage path (e.g., "announcers/{id}/profile.jpg")
 }
 
+/**
+ * ✅ Creates announcer via Cloud Function (Firebase Auth + Custom Claims + Firestore)
+ * This is the enterprise-level approach - NO passwords in Firestore!
+ */
 export async function addAnnouncer(announcerData: NewAnnouncerData): Promise<string> {
-    const newAnnouncer = {
-        ...announcerData,
-        status: ANNOUNCER_STATUS.ACTIVE,
-        total_announcements: 0,
-        joined_date: serverTimestamp()
-    };
-    
-    const docRef = await addDoc(collection(db, "announcers"), newAnnouncer);
-    return docRef.id;
+    try {
+        const createAnnouncerFn = httpsCallable(functions, 'createAnnouncer');
+        
+        const result = await createAnnouncerFn({
+            email: announcerData.email,
+            password: announcerData.password,
+            name: announcerData.name,
+            affiliation_name: announcerData.affiliation_name,
+            affiliation_type: announcerData.affiliation_type,
+            phone: announcerData.phone,
+            role: announcerData.role,
+            profilePicture: announcerData.profilePicture
+        });
+
+        const data = result.data as { success: boolean; uid: string; message: string };
+        
+        if (!data.success) {
+            throw new Error(data.message || 'Failed to create announcer');
+        }
+
+        return data.uid; // Return the Firebase Auth UID (which is also the Firestore doc ID)
+    } catch (error: any) {
+        console.error('Error creating announcer:', error);
+        throw new Error(error.message || 'Failed to create announcer');
+    }
 }
 
 export interface UpdateAnnouncerData {
@@ -43,36 +64,55 @@ export interface UpdateAnnouncerData {
     affiliation_type: string;
     phone: string;
     role: string;
-    profilePicture?: string; // Optional - profile picture URL
+    profilePicture?: string; // Optional - storage path (e.g., "announcers/{id}/profile.jpg")
 }
 
+/**
+ * ✅ Updates announcer via Cloud Function (updates both Auth and Firestore)
+ */
 export async function updateAnnouncer(announcerId: string, announcerData: UpdateAnnouncerData): Promise<void> {
-    const announcerRef = doc(db, "announcers", announcerId);
-    
-    // Only include password in update if it's provided (not empty)
-    const updateData: any = {
-        name: announcerData.name,
-        email: announcerData.email,
-        affiliation_name: announcerData.affiliation_name,
-        affiliation_type: announcerData.affiliation_type,
-        phone: announcerData.phone,
-        role: announcerData.role
-    };
-    
-    // Only update password if a new one is provided
-    if (announcerData.password && announcerData.password.trim() !== '') {
-        updateData.password = announcerData.password;
+    try {
+        const updateAnnouncerFn = httpsCallable(functions, 'updateAnnouncer');
+        
+        const updatePayload: any = {
+            announcerId,
+            name: announcerData.name,
+            email: announcerData.email,
+            affiliation_name: announcerData.affiliation_name,
+            affiliation_type: announcerData.affiliation_type,
+            phone: announcerData.phone,
+            role: announcerData.role
+        };
+
+        // Only include password if it's being changed
+        if (announcerData.password && announcerData.password.trim() !== '') {
+            updatePayload.password = announcerData.password;
+        }
+
+        // Only include profile picture if provided
+        if (announcerData.profilePicture) {
+            updatePayload.profilePicture = announcerData.profilePicture;
+        }
+
+        const result = await updateAnnouncerFn(updatePayload);
+        const data = result.data as { success: boolean; message: string };
+
+        if (!data.success) {
+            throw new Error(data.message || 'Failed to update announcer');
+        }
+    } catch (error: any) {
+        console.error('Error updating announcer:', error);
+        throw new Error(error.message || 'Failed to update announcer');
     }
-    
-    // Only update profile picture if provided
-    if (announcerData.profilePicture) {
-        updateData.profilePicture = announcerData.profilePicture;
-    }
-    
-    await updateDoc(announcerRef, updateData);
 }
 
-export async function updateAnnouncerProfilePicture(announcerId: string, profilePictureUrl: string): Promise<void> {
+/**
+ * Updates only the profile picture in Firestore
+ * This is a lightweight update that doesn't require Cloud Function
+ * @param announcerId - The announcer's UID
+ * @param profilePicturePath - Storage path (e.g., "announcers/{id}/profile.jpg")
+ */
+export async function updateAnnouncerProfilePicture(announcerId: string, profilePicturePath: string): Promise<void> {
     const announcerRef = doc(db, "announcers", announcerId);
-    await updateDoc(announcerRef, { profilePicture: profilePictureUrl });
+    await updateDoc(announcerRef, { profilePicture: profilePicturePath });
 }

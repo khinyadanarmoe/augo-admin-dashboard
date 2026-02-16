@@ -5,8 +5,7 @@ import { addAnnouncer, updateAnnouncer, updateAnnouncerProfilePicture } from "@/
 import { fetchAffiliations, addAffiliation, type AffiliationData } from "@/lib/firestore/affiliations";
 import { AFFILIATION_TYPES } from "@/types/export";
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
-import bcrypt from "bcryptjs";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 
 interface AnnouncerFormData {
@@ -212,7 +211,8 @@ function AddAnnouncer() {
       const compressedBlob = await compressImage(file);
       console.log('Image compressed, size:', compressedBlob.size);
       
-      const storageRef = ref(storage, `announcers/${announcerId}/profile.jpg`);
+      const storagePath = `announcers/${announcerId}/profile.jpg`;
+      const storageRef = ref(storage, storagePath);
       console.log('Uploading to Firebase Storage...');
       
       // Add timeout protection (30 seconds)
@@ -222,11 +222,10 @@ function AddAnnouncer() {
       );
       
       await Promise.race([uploadPromise, timeoutPromise]);
-      console.log('Upload complete, getting download URL...');
+      console.log('Upload complete, storage path:', storagePath);
       
-      const downloadURL = await getDownloadURL(storageRef);
-      console.log('Download URL obtained:', downloadURL);
-      return downloadURL;
+      // Return storage path instead of URL
+      return storagePath;
     } catch (error: any) {
       console.error('Image upload error:', error);
       throw new Error(`Failed to upload image: ${error.message}`);
@@ -281,8 +280,8 @@ function AddAnnouncer() {
         if (formData.profilePicture) {
           try {
             console.log('Uploading profile picture for edit mode...');
-            const imageUrl = await uploadProfilePicture(formData.profilePicture, query.id as string);
-            updateData.profilePicture = imageUrl;
+            const imagePath = await uploadProfilePicture(formData.profilePicture, query.id as string);
+            updateData.profilePicture = imagePath;
           } catch (error: any) {
             console.error('Failed to upload image:', error);
             alert(`Failed to upload image: ${error.message}. The announcer will be updated without the new image.`);
@@ -292,20 +291,14 @@ function AddAnnouncer() {
 
         // Only hash and update password if a new one is provided
         if (formData.password && formData.password.trim() !== '') {
-          const salt = await bcrypt.genSalt(6); // Reduced from 10 to 6 for faster processing
-          const hashedPassword = await bcrypt.hash(formData.password, salt);
-          updateData.password = hashedPassword;
+          updateData.password = formData.password; // Cloud Function will handle password update in Firebase Auth
         }
 
         await updateAnnouncer(query.id as string, updateData);
         console.log('Announcer updated with ID:', query.id);
         alert('Announcer updated successfully!');
       } else {
-        // Create new announcer
-        // Hash the password before saving
-        const salt = await bcrypt.genSalt(6); // Reduced from 10 to 6 for faster processing
-        const hashedPassword = await bcrypt.hash(formData.password, salt);
-
+        // ✅ Create new announcer via Cloud Function (creates Auth + sets custom claim + creates Firestore doc)
         const newAnnouncerId = await addAnnouncer({
           name: formData.name,
           email: formData.email,
@@ -313,14 +306,14 @@ function AddAnnouncer() {
           affiliation_type: formData.affiliation_type,
           phone: formData.phone,
           role: formData.role,
-          password: hashedPassword
+          password: formData.password // Password sent directly, Cloud Function handles hashing via Firebase Auth
         });
 
         // Upload profile picture if provided
         if (formData.profilePicture) {
-          const imageUrl = await uploadProfilePicture(formData.profilePicture, newAnnouncerId);
+          const imagePath = await uploadProfilePicture(formData.profilePicture, newAnnouncerId);
           // Only update the profilePicture field
-          await updateAnnouncerProfilePicture(newAnnouncerId, imageUrl);
+          await updateAnnouncerProfilePicture(newAnnouncerId, imagePath);
         }
         
         console.log('New announcer created with ID:', newAnnouncerId);
