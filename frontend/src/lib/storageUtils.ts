@@ -14,7 +14,7 @@ import { storage } from "./firebase";
  */
 export async function getStorageUrl(storagePath: string | undefined | null): Promise<string | null> {
     if (!storagePath) return null;
-    
+
     try {
         const storageRef = ref(storage, storagePath);
         const url = await getDownloadURL(storageRef);
@@ -68,7 +68,7 @@ export function useStorageUrl(storagePath: string | undefined | null) {
         }
 
         let cancelled = false;
-        
+
         getStorageUrl(storagePath)
             .then(downloadUrl => {
                 if (!cancelled) {

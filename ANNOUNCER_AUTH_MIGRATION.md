@@ -5,12 +5,14 @@
 Your announcer authentication has been upgraded from a **Firestore-based system** to an **enterprise-level Firebase Auth system with custom claims**.
 
 ### ❌ Before (Insecure)
+
 - Passwords stored in Firestore
 - Authentication checked by document existence
 - UIDs didn't match between Auth and Firestore
 - Security risk: passwords exposed in database
 
 ### ✅ After (Enterprise-Level)
+
 - Passwords managed by Firebase Auth (never stored in Firestore)
 - Authentication via custom claims in ID token
 - UID consistency: Auth UID = Firestore doc ID
@@ -104,6 +106,7 @@ If you have **existing announcers** in your system that were created with the ol
 For each existing announcer:
 
 1. **Create Firebase Auth account** (if they don't have one):
+
    ```bash
    # In Firebase Console → Authentication → Add user
    # Email: announcer@example.com
@@ -112,6 +115,7 @@ For each existing announcer:
    ```
 
 2. **Set custom claim**:
+
    ```bash
    node scripts/setAnnouncer.js <their-firebase-uid>
    ```
@@ -127,8 +131,8 @@ Create a migration script:
 
 ```javascript
 // scripts/migrateAnnouncers.js
-const admin = require('firebase-admin');
-const serviceAccount = require('../serviceAccountKey.json');
+const admin = require("firebase-admin");
+const serviceAccount = require("../serviceAccountKey.json");
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -137,24 +141,24 @@ admin.initializeApp({
 async function migrateAnnouncers() {
   const db = admin.firestore();
   const auth = admin.auth();
-  
+
   // Get all announcers from Firestore
-  const announcersSnapshot = await db.collection('announcers').get();
-  
+  const announcersSnapshot = await db.collection("announcers").get();
+
   for (const doc of announcersSnapshot.docs) {
     const announcer = doc.data();
     const oldDocId = doc.id;
-    
+
     try {
       console.log(`\nMigrating: ${announcer.email}`);
-      
+
       // 1. Create Auth user (or get if exists)
       let userRecord;
       try {
         userRecord = await auth.getUserByEmail(announcer.email);
         console.log(`✓ Auth user exists: ${userRecord.uid}`);
       } catch (error) {
-        if (error.code === 'auth/user-not-found') {
+        if (error.code === "auth/user-not-found") {
           // Create new Auth user with temporary password
           userRecord = await auth.createUser({
             email: announcer.email,
@@ -166,50 +170,50 @@ async function migrateAnnouncers() {
           throw error;
         }
       }
-      
+
       const uid = userRecord.uid;
-      
+
       // 2. Set custom claim
       await auth.setCustomUserClaims(uid, { announcer: true });
       console.log(`✓ Set custom claim for: ${uid}`);
-      
+
       // 3. Create new Firestore doc with Auth UID
       const newAnnouncerData = {
         name: announcer.name,
         email: announcer.email,
         affiliation_name: announcer.affiliation_name,
         affiliation_type: announcer.affiliation_type,
-        phone: announcer.phone || '',
-        role: announcer.role || '',
-        status: announcer.status || 'active',
+        phone: announcer.phone || "",
+        role: announcer.role || "",
+        status: announcer.status || "active",
         total_announcements: announcer.total_announcements || 0,
-        joined_date: announcer.joined_date || admin.firestore.FieldValue.serverTimestamp(),
+        joined_date:
+          announcer.joined_date || admin.firestore.FieldValue.serverTimestamp(),
       };
-      
+
       // Copy profile picture if exists
       if (announcer.profilePicture) {
         newAnnouncerData.profilePicture = announcer.profilePicture;
       }
-      
+
       // NO PASSWORD FIELD - that's the point!
-      
-      await db.collection('announcers').doc(uid).set(newAnnouncerData);
+
+      await db.collection("announcers").doc(uid).set(newAnnouncerData);
       console.log(`✓ Created new Firestore doc: /announcers/${uid}`);
-      
+
       // 4. Delete old document (if different)
       if (oldDocId !== uid) {
-        await db.collection('announcers').doc(oldDocId).delete();
+        await db.collection("announcers").doc(oldDocId).delete();
         console.log(`✓ Deleted old doc: ${oldDocId}`);
       }
-      
+
       console.log(`✅ Successfully migrated: ${announcer.email}`);
-      
     } catch (error) {
       console.error(`❌ Failed to migrate ${announcer.email}:`, error.message);
     }
   }
-  
-  console.log('\n✅ Migration complete!');
+
+  console.log("\n✅ Migration complete!");
   process.exit(0);
 }
 
@@ -217,6 +221,7 @@ migrateAnnouncers();
 ```
 
 Run it:
+
 ```bash
 node scripts/migrateAnnouncers.js
 ```
@@ -245,7 +250,7 @@ Auth.auth().currentUser?.getIDTokenResult { result, error in
     if let claims = result?.claims {
         print("Claims:", claims)
         // Should see: announcer = true
-        
+
         if let isAnnouncer = claims["announcer"] as? Bool, isAnnouncer {
             print("✅ User is verified announcer")
         }
@@ -256,6 +261,7 @@ Auth.auth().currentUser?.getIDTokenResult { result, error in
 ### Test 3: Firestore Rules
 
 Try to create/read announcements as:
+
 - ✅ Announcer (with claim) → Should work
 - ❌ Regular user (no claim) → Should fail
 - ✅ Admin → Should work
@@ -275,14 +281,14 @@ Auth.auth().signIn(withEmail: email, password: password) { result, error in
         print("Login error:", error!)
         return
     }
-    
+
     // ⭐ Force refresh token to get custom claims
     Auth.auth().currentUser?.getIDTokenForcingRefresh(true) { token, error in
         if let error = error {
             print("Token refresh error:", error)
             return
         }
-        
+
         // Now check if user is announcer
         Auth.auth().currentUser?.getIDTokenResult { result, error in
             if let claims = result?.claims,
@@ -308,7 +314,7 @@ func checkUserRole(completion: @escaping (UserRole) -> Void) {
             completion(.regular)
             return
         }
-        
+
         if let isAdmin = claims["admin"] as? Bool, isAdmin {
             completion(.admin)
         } else if let isAnnouncer = claims["announcer"] as? Bool, isAnnouncer {
@@ -335,7 +341,7 @@ The new rules use custom claims:
 ```javascript
 // Helper function
 function isAnnouncer() {
-  return request.auth != null && 
+  return request.auth != null &&
          request.auth.token.announcer == true;
 }
 
@@ -343,7 +349,7 @@ function isAnnouncer() {
 match /announcements/{announcementId} {
   allow read: if resource.data.status == 'approved';
   allow create: if isAnnouncer();
-  allow read, update: if isAnnouncer() && 
+  allow read, update: if isAnnouncer() &&
                         request.auth.uid == resource.data.announcerId;
   allow read, write: if isAdmin();
 }
@@ -351,7 +357,7 @@ match /announcements/{announcementId} {
 // Announcers - can read/update their own profile
 match /announcers/{announcerId} {
   allow read: if resource.data.status == 'active';
-  allow read, update: if isAnnouncer() && 
+  allow read, update: if isAnnouncer() &&
                         request.auth.uid == announcerId;
   allow read, write: if isAdmin();
 }
@@ -366,8 +372,9 @@ match /announcers/{announcerId} {
 Creates a new announcer (Auth + claim + Firestore).
 
 **Usage** (called automatically from admin panel):
+
 ```javascript
-const createAnnouncerFn = httpsCallable(functions, 'createAnnouncer');
+const createAnnouncerFn = httpsCallable(functions, "createAnnouncer");
 const result = await createAnnouncerFn({
   email: "announcer@example.com",
   password: "securePassword123",
@@ -375,7 +382,7 @@ const result = await createAnnouncerFn({
   affiliation_name: "Engineering Department",
   affiliation_type: "Department",
   phone: "123-456-7890",
-  role: "PR Assistant"
+  role: "PR Assistant",
 });
 ```
 
@@ -384,7 +391,7 @@ const result = await createAnnouncerFn({
 Updates announcer info (Auth + Firestore).
 
 ```javascript
-const updateAnnouncerFn = httpsCallable(functions, 'updateAnnouncer');
+const updateAnnouncerFn = httpsCallable(functions, "updateAnnouncer");
 await updateAnnouncerFn({
   announcerId: "user-uid",
   name: "Updated Name",
@@ -399,7 +406,7 @@ await updateAnnouncerFn({
 Deletes announcer from Auth and Firestore.
 
 ```javascript
-const deleteAnnouncerFn = httpsCallable(functions, 'deleteAnnouncer');
+const deleteAnnouncerFn = httpsCallable(functions, "deleteAnnouncer");
 await deleteAnnouncerFn({ announcerId: "user-uid" });
 ```
 
@@ -408,7 +415,7 @@ await deleteAnnouncerFn({ announcerId: "user-uid" });
 Sets custom claim for existing user.
 
 ```javascript
-const setAnnouncerClaimFn = httpsCallable(functions, 'setAnnouncerClaim');
+const setAnnouncerClaimFn = httpsCallable(functions, "setAnnouncerClaim");
 await setAnnouncerClaimFn({ userId: "user-uid" });
 ```
 
@@ -421,6 +428,7 @@ await setAnnouncerClaimFn({ userId: "user-uid" });
 **Solution**: Announcer's token doesn't have the custom claim.
 
 1. Check if claim is set:
+
    ```bash
    # In Firebase Console → Authentication → Click user → Custom claims
    # Should see: { "announcer": true }
@@ -434,11 +442,13 @@ await setAnnouncerClaimFn({ userId: "user-uid" });
 ### Problem: Announcer can't login
 
 **Causes**:
+
 1. Auth account not created
 2. Wrong password
 3. Email not verified (if required)
 
 **Solution**:
+
 - Check Firebase Console → Authentication
 - Reset password if needed
 - Verify custom claim is set
@@ -446,14 +456,16 @@ await setAnnouncerClaimFn({ userId: "user-uid" });
 ### Problem: "Cloud function not found"
 
 **Solution**:
+
 1. Check functions are deployed:
+
    ```bash
    firebase deploy --only functions
    ```
 
 2. Check function names match in code:
    ```javascript
-   httpsCallable(functions, 'createAnnouncer') // Must match export name
+   httpsCallable(functions, "createAnnouncer"); // Must match export name
    ```
 
 ### Problem: Firestore document ID doesn't match UID
@@ -485,11 +497,13 @@ Before going to production:
 ## 📞 Scripts Reference
 
 ### Set Custom Claim Manually
+
 ```bash
 node scripts/setAnnouncer.js <firebase-uid>
 ```
 
 ### Set Admin Claim
+
 ```bash
 NEXT_PUBLIC_FIREBASE_ADMIN_UID=<uid> node scripts/setAdmin.js
 ```
@@ -498,14 +512,14 @@ NEXT_PUBLIC_FIREBASE_ADMIN_UID=<uid> node scripts/setAdmin.js
 
 ## 🎓 Why This Is Better
 
-| Aspect | Old System | New System |
-|--------|-----------|------------|
-| **Security** | Passwords in Firestore ❌ | Passwords in Auth ✅ |
-| **Speed** | Document query on every request | Claim in token (instant) |
-| **Consistency** | UID mismatch possible | Auth UID = Doc ID |
-| **Scalability** | Firestore read for every auth check | Zero extra reads |
-| **Best Practice** | Custom implementation | Firebase recommended pattern |
-| **Token Management** | Manual | Automatic via Firebase |
+| Aspect               | Old System                          | New System                   |
+| -------------------- | ----------------------------------- | ---------------------------- |
+| **Security**         | Passwords in Firestore ❌           | Passwords in Auth ✅         |
+| **Speed**            | Document query on every request     | Claim in token (instant)     |
+| **Consistency**      | UID mismatch possible               | Auth UID = Doc ID            |
+| **Scalability**      | Firestore read for every auth check | Zero extra reads             |
+| **Best Practice**    | Custom implementation               | Firebase recommended pattern |
+| **Token Management** | Manual                              | Automatic via Firebase       |
 
 ---
 

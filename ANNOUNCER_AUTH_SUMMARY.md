@@ -11,6 +11,7 @@ Your announcer authentication system has been completely rebuilt from the ground
 ### 1. **Cloud Functions** (Backend)
 
 **New Files:**
+
 - `functions/src/announcers.ts` - 4 Cloud Functions for announcer management:
   - `createAnnouncer` - Creates announcer with Firebase Auth + custom claims
   - `updateAnnouncer` - Updates announcer info (Auth + Firestore)
@@ -18,24 +19,29 @@ Your announcer authentication system has been completely rebuilt from the ground
   - `setAnnouncerClaim` - Manually sets custom claim for existing users
 
 **Modified Files:**
+
 - `functions/src/index.ts` - Exports new functions
 
 ### 2. **Frontend**
 
 **Modified Files:**
+
 - `frontend/src/lib/firebase.ts` - Added Firebase Functions support
 - `frontend/src/lib/firestore/announcers.ts` - Uses Cloud Functions instead of direct Firestore writes
 - `frontend/src/pages/announcers/add.tsx` - Removed bcrypt, uses Cloud Functions
 
 **Removed Dependencies:**
+
 - ❌ `bcryptjs` - No longer needed (Firebase Auth handles password hashing)
 
 ### 3. **Security Rules**
 
 **Modified Files:**
+
 - `firestore.rules` - Added `isAnnouncer()` helper function, updated rules to use custom claims
 
 **Key Changes:**
+
 ```javascript
 // NEW: Check custom claim in token (fast!)
 function isAnnouncer() {
@@ -49,12 +55,14 @@ function isAnnouncer() {
 ### 4. **Scripts**
 
 **New Files:**
+
 - `scripts/setAnnouncer.js` - Manually set announcer claim for a user
 - `scripts/migrateAnnouncers.js` - Automated migration for existing announcers
 
 ### 5. **Documentation**
 
 **New Files:**
+
 - `ANNOUNCER_AUTH_MIGRATION.md` - Complete migration guide (detailed)
 - `QUICK_START_ANNOUNCER_AUTH.md` - Quick start guide (you are here)
 - `ANNOUNCER_AUTH_SUMMARY.md` - This summary
@@ -71,6 +79,7 @@ firebase deploy --only functions
 ```
 
 **Expected output:**
+
 ```
 ✔  Deploy complete!
 Functions:
@@ -90,11 +99,13 @@ firebase deploy --only firestore:rules
 ### Step 3: Migrate Existing Announcers (If Any)
 
 **If you have existing announcers:**
+
 ```bash
 node scripts/migrateAnnouncers.js
 ```
 
 **If you don't have announcers yet:**
+
 - Skip this step
 - New announcers created via admin panel will work correctly
 
@@ -135,18 +146,18 @@ Auth.auth().signIn(withEmail: email, password: password) { result, error in
         print("Login failed:", error!)
         return
     }
-    
+
     // ⭐ CRITICAL: Force token refresh to get custom claims
     Auth.auth().currentUser?.getIDTokenForcingRefresh(true) { token, error in
         if let error = error {
             print("Token refresh error:", error)
             return
         }
-        
+
         // Check claims
         Auth.auth().currentUser?.getIDTokenResult { result, error in
             guard let claims = result?.claims else { return }
-            
+
             if let isAnnouncer = claims["announcer"] as? Bool, isAnnouncer {
                 print("✅ Announcer authenticated")
                 // Navigate to announcer dashboard
@@ -166,13 +177,13 @@ Auth.auth().signIn(withEmail: email, password: password) { result, error in
 
 ## 🔐 Security Improvements
 
-| Aspect | Before | After | Impact |
-|--------|--------|-------|--------|
-| **Password Storage** | Firestore (hashed but visible) | Firebase Auth only | 🔒 Zero password exposure |
-| **Auth Check Speed** | 100-500ms (Firestore query) | 0ms (token claim) | ⚡ 100-500ms faster |
-| **UID Consistency** | Auth ≠ Firestore ID | Auth = Firestore ID | ✅ Clean architecture |
-| **Firestore Reads** | 1 read per auth check | 0 reads | 💰 Cost savings |
-| **Best Practice** | Custom implementation | Firebase official pattern | 🏆 Enterprise-level |
+| Aspect               | Before                         | After                     | Impact                    |
+| -------------------- | ------------------------------ | ------------------------- | ------------------------- |
+| **Password Storage** | Firestore (hashed but visible) | Firebase Auth only        | 🔒 Zero password exposure |
+| **Auth Check Speed** | 100-500ms (Firestore query)    | 0ms (token claim)         | ⚡ 100-500ms faster       |
+| **UID Consistency**  | Auth ≠ Firestore ID            | Auth = Firestore ID       | ✅ Clean architecture     |
+| **Firestore Reads**  | 1 read per auth check          | 0 reads                   | 💰 Cost savings           |
+| **Best Practice**    | Custom implementation          | Firebase official pattern | 🏆 Enterprise-level       |
 
 ---
 
@@ -247,6 +258,7 @@ Auth.auth().signIn(withEmail: email, password: password) { result, error in
 ## 🛠 Available Commands
 
 ### Deploy
+
 ```bash
 # Deploy everything
 firebase deploy
@@ -262,6 +274,7 @@ firebase deploy --only functions:createAnnouncer
 ```
 
 ### Scripts
+
 ```bash
 # Set announcer claim manually
 node scripts/setAnnouncer.js <firebase-uid>
@@ -274,6 +287,7 @@ NEXT_PUBLIC_FIREBASE_ADMIN_UID=<uid> node scripts/setAdmin.js
 ```
 
 ### Development
+
 ```bash
 # Test functions locally
 cd functions
@@ -322,6 +336,7 @@ Without this, announcer custom claims won't be available immediately.
 ### Q: What happens to existing announcers?
 
 **A:** Run the migration script:
+
 ```bash
 node scripts/migrateAnnouncers.js
 ```
@@ -334,7 +349,8 @@ This creates Auth accounts and sets custom claims automatically.
 
 ### Q: Will this break my existing app?
 
-**A:** 
+**A:**
+
 - ✅ Frontend admin panel: Works immediately after deploying functions
 - ⚠️ iOS app: Needs token refresh logic added
 - ⚠️ Existing announcers: Need migration
@@ -342,6 +358,7 @@ This creates Auth accounts and sets custom claims automatically.
 ### Q: How do I know if it's working?
 
 **A:** Check Firebase Console:
+
 1. Authentication → User has custom claim `{ announcer: true }`
 2. Firestore → Document ID = Auth UID
 3. Firestore → NO `password` field exists
@@ -357,26 +374,30 @@ This creates Auth accounts and sets custom claims automatically.
 ✅ **Clean codebase** - No manual password hashing  
 ✅ **UID consistency** - Auth UID always matches Firestore doc ID  
 ✅ **Easy maintenance** - Standard Firebase patterns  
-✅ **Future-proof** - Ready for advanced features  
+✅ **Future-proof** - Ready for advanced features
 
 ---
 
 ## 🆘 Need Help?
 
 **Cloud Functions not deploying?**
+
 - Check: `firebase projects:list` (correct project?)
 - Check: Firebase Console → Functions → Region matches
 
 **"Permission denied" errors?**
+
 - Check: Custom claim is set in Firebase Auth
 - Check: Token has been refreshed on client
 
 **Can't create announcer?**
+
 - Check: Admin is logged in
 - Check: Cloud Functions are deployed
 - Check console for errors
 
 **Migration issues?**
+
 - Check: serviceAccountKey.json exists
 - Check: Script has correct permissions
 - Review script output for specific errors
@@ -388,6 +409,7 @@ This creates Auth accounts and sets custom claims automatically.
 All code changes are complete and tested. No errors found.
 
 **Next Action**: Deploy Cloud Functions
+
 ```bash
 cd functions && firebase deploy --only functions
 ```

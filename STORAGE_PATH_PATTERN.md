@@ -10,6 +10,7 @@
 ## 🎯 Why This Matters
 
 ### ❌ Before (URLs in Firestore)
+
 ```javascript
 {
   id: "abc123",
@@ -19,12 +20,14 @@
 ```
 
 **Problems:**
+
 - ❌ Very long strings (waste of storage)
 - ❌ Contains tokens that can expire
 - ❌ Hard to migrate between Firebase projects
 - ❌ Not following Firebase best practices
 
 ### ✅ After (Paths in Firestore)
+
 ```javascript
 {
   id: "abc123",
@@ -34,6 +37,7 @@
 ```
 
 **Benefits:**
+
 - ✅ Short and clean
 - ✅ Stable (doesn't change)
 - ✅ Easy to migrate
@@ -45,21 +49,25 @@
 ## 📁 Storage Path Pattern
 
 ### Announcers
+
 ```
 announcers/{announcerId}/profile.jpg
 ```
 
 Example:
+
 ```
 announcers/abc123xyz/profile.jpg
 ```
 
 ### AR Models
+
 ```
 3d_models/ar/{category}/{modelId}.{extension}
 ```
 
 Examples:
+
 ```
 3d_models/ar/monsters/sleepymonster.usdz
 3d_models/ar/monsters/preview_photo/sleepymonster.jpg
@@ -70,12 +78,14 @@ Examples:
 ## 🔧 Updated Files
 
 ### Frontend
+
 - ✅ `frontend/src/pages/announcers/add.tsx` - Returns path instead of URL
 - ✅ `frontend/src/pages/ar-models/add.tsx` - Returns path instead of URL
 - ✅ `frontend/src/lib/firestore/announcers.ts` - Updated comments
 - ✅ `frontend/src/lib/storageUtils.ts` - **NEW** - Utilities to convert paths to URLs
 
 ### Backend
+
 - ✅ `functions/src/announcers.ts` - Updated interface comments
 
 ---
@@ -93,8 +103,8 @@ const storageRef = ref(storage, storagePath);
 await uploadBytes(storageRef, file);
 
 // Save path to Firestore
-await updateDoc(userRef, { 
-  profilePicture: storagePath  // Just the path!
+await updateDoc(userRef, {
+  profilePicture: storagePath, // Just the path!
 });
 ```
 
@@ -103,27 +113,29 @@ await updateDoc(userRef, {
 When you need to display an image, convert path to URL:
 
 #### Option 1: Using the Hook (Recommended)
+
 ```typescript
 import { useStorageUrl } from "@/lib/storageUtils";
 
 function AnnouncerAvatar({ announcer }) {
   const { url, loading, error } = useStorageUrl(announcer.profilePicture);
-  
+
   if (loading) return <LoadingSpinner />;
   if (error || !url) return <DefaultAvatar />;
-  
+
   return <img src={url} alt={announcer.name} />;
 }
 ```
 
 #### Option 2: Using the Function
+
 ```typescript
 import { getStorageUrl } from "@/lib/storageUtils";
 
 async function loadImage() {
   const path = "announcers/abc123/profile.jpg";
   const url = await getStorageUrl(path);
-  
+
   if (url) {
     setImageUrl(url);
   }
@@ -131,6 +143,7 @@ async function loadImage() {
 ```
 
 #### Option 3: Multiple URLs at Once
+
 ```typescript
 import { getStorageUrls } from "@/lib/storageUtils";
 
@@ -138,9 +151,9 @@ async function loadMultipleImages() {
   const paths = [
     "announcers/abc123/profile.jpg",
     "announcers/def456/profile.jpg",
-    "3d_models/ar/monsters/sleepy.usdz"
+    "3d_models/ar/monsters/sleepy.usdz",
   ];
-  
+
   const urls = await getStorageUrls(paths);
   // urls is an array of URLs (or null for failed conversions)
 }
@@ -157,7 +170,7 @@ import { useStorageUrl } from "@/lib/storageUtils";
 
 function AnnouncerRow({ announcer }) {
   const { url, loading } = useStorageUrl(announcer.profilePicture);
-  
+
   return (
     <tr>
       <td>
@@ -183,6 +196,7 @@ function AnnouncerRow({ announcer }) {
 ## 🔍 Checking Your Data
 
 ### Correct Format ✅
+
 In Firebase Console → Firestore → announcers collection:
 
 ```json
@@ -195,6 +209,7 @@ In Firebase Console → Firestore → announcers collection:
 ```
 
 ### Incorrect Format ❌
+
 ```json
 {
   "id": "abc123",
@@ -212,44 +227,45 @@ If you have existing documents with URLs instead of paths, run this migration:
 
 ```javascript
 // scripts/migrateStoragePaths.js
-const admin = require('firebase-admin');
+const admin = require("firebase-admin");
 admin.initializeApp();
 
 async function migrateStoragePaths() {
   const db = admin.firestore();
-  
+
   // Migrate announcers
-  const announcers = await db.collection('announcers').get();
-  
+  const announcers = await db.collection("announcers").get();
+
   for (const doc of announcers.docs) {
     const data = doc.data();
-    
-    if (data.profilePicture && data.profilePicture.startsWith('https://')) {
+
+    if (data.profilePicture && data.profilePicture.startsWith("https://")) {
       // Extract path from URL
-      // https://...../o/announcers%2Fabc123%2Fprofile.jpg?alt=... 
+      // https://...../o/announcers%2Fabc123%2Fprofile.jpg?alt=...
       // -> announcers/abc123/profile.jpg
-      
+
       const match = data.profilePicture.match(/\/o\/(.+?)\?/);
       if (match) {
         const encodedPath = match[1];
         const path = decodeURIComponent(encodedPath);
-        
+
         await doc.ref.update({
-          profilePicture: path
+          profilePicture: path,
         });
-        
+
         console.log(`✅ Updated ${doc.id}: ${path}`);
       }
     }
   }
-  
-  console.log('✅ Migration complete!');
+
+  console.log("✅ Migration complete!");
 }
 
 migrateStoragePaths();
 ```
 
 Run it:
+
 ```bash
 node scripts/migrateStoragePaths.js
 ```
@@ -276,11 +292,12 @@ Add this to your announcer detail component:
 
 ```typescript
 const { url } = useStorageUrl(announcer.profilePicture);
-console.log('Storage path:', announcer.profilePicture);
-console.log('Download URL:', url);
+console.log("Storage path:", announcer.profilePicture);
+console.log("Download URL:", url);
 ```
 
 Should see:
+
 ```
 Storage path: announcers/abc123/profile.jpg
 Download URL: https://firebasestorage.googleapis.com/...
@@ -295,12 +312,15 @@ Download URL: https://firebasestorage.googleapis.com/...
 Converts a single path to URL.
 
 **Parameters:**
+
 - `path` (string | undefined | null) - Storage path
 
 **Returns:**
+
 - `Promise<string | null>` - Download URL or null
 
 **Example:**
+
 ```typescript
 const url = await getStorageUrl("announcers/abc123/profile.jpg");
 ```
@@ -312,16 +332,19 @@ const url = await getStorageUrl("announcers/abc123/profile.jpg");
 Converts multiple paths to URLs.
 
 **Parameters:**
+
 - `paths` (Array<string | undefined | null>) - Array of storage paths
 
 **Returns:**
+
 - `Promise<Array<string | null>>` - Array of download URLs
 
 **Example:**
+
 ```typescript
 const urls = await getStorageUrls([
   "announcers/abc/profile.jpg",
-  "3d_models/ar/sleepy.usdz"
+  "3d_models/ar/sleepy.usdz",
 ]);
 ```
 
@@ -332,15 +355,18 @@ const urls = await getStorageUrls([
 React hook for converting path to URL.
 
 **Parameters:**
+
 - `path` (string | undefined | null) - Storage path
 
 **Returns:**
+
 - Object with:
   - `url` (string | null) - Download URL
   - `loading` (boolean) - Loading state
   - `error` (Error | null) - Error if failed
 
 **Example:**
+
 ```typescript
 const { url, loading, error } = useStorageUrl(announcer.profilePicture);
 
@@ -353,15 +379,15 @@ return <img src={url} />;
 
 ## ✅ Benefits Summary
 
-| Aspect | URLs in Firestore | Paths in Firestore |
-|--------|-------------------|-------------------|
-| **Size** | ~200+ characters | ~30-50 characters |
-| **Stability** | Can change with tokens | Never changes |
-| **Portability** | Tied to project | Easy to migrate |
-| **Best Practice** | ❌ Not recommended | ✅ Recommended |
-| **Storage Cost** | Higher | Lower |
-| **Query Speed** | Same | Same |
-| **Display Speed** | Instant | +1 async call |
+| Aspect            | URLs in Firestore      | Paths in Firestore |
+| ----------------- | ---------------------- | ------------------ |
+| **Size**          | ~200+ characters       | ~30-50 characters  |
+| **Stability**     | Can change with tokens | Never changes      |
+| **Portability**   | Tied to project        | Easy to migrate    |
+| **Best Practice** | ❌ Not recommended     | ✅ Recommended     |
+| **Storage Cost**  | Higher                 | Lower              |
+| **Query Speed**   | Same                   | Same               |
+| **Display Speed** | Instant                | +1 async call      |
 
 The small trade-off of one async call when displaying is worth the massive benefits in data cleanliness and portability.
 

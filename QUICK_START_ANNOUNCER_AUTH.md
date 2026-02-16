@@ -9,22 +9,27 @@ Your announcer authentication has been upgraded from an **insecure Firestore-bas
 ## 🔥 Files Changed
 
 ### Backend (Cloud Functions)
+
 - ✅ **`functions/src/announcers.ts`** - New Cloud Functions for announcer management
 - ✅ **`functions/src/index.ts`** - Export new functions
 
 ### Frontend
+
 - ✅ **`frontend/src/lib/firebase.ts`** - Added Firebase Functions support
 - ✅ **`frontend/src/lib/firestore/announcers.ts`** - Removed password handling, now uses Cloud Functions
 - ✅ **`frontend/src/pages/announcers/add.tsx`** - Removed bcrypt, uses Cloud Function
 
 ### Security
+
 - ✅ **`firestore.rules`** - Updated to use custom claims instead of document checks
 
 ### Scripts
+
 - ✅ **`scripts/setAnnouncer.js`** - Manually set announcer custom claim
 - ✅ **`scripts/migrateAnnouncers.js`** - Automated migration for existing announcers
 
 ### Documentation
+
 - ✅ **`ANNOUNCER_AUTH_MIGRATION.md`** - Complete migration guide
 
 ---
@@ -39,6 +44,7 @@ firebase deploy --only functions
 ```
 
 This deploys:
+
 - `createAnnouncer` - Creates announcer with Auth + custom claims
 - `updateAnnouncer` - Updates announcer info
 - `deleteAnnouncer` - Deletes announcer
@@ -60,12 +66,14 @@ node migrateAnnouncers.js
 ```
 
 This will:
+
 - Create Firebase Auth accounts for existing announcers
 - Set custom claims
 - Remove password fields from Firestore
 - Update document IDs to match Auth UIDs
 
 **If you don't have existing announcers yet:**
+
 - Skip this step
 - New announcers will be created correctly automatically
 
@@ -96,6 +104,7 @@ node scripts/setAnnouncer.js <user-uid>
 ## 🔐 Security Upgrade Summary
 
 ### ❌ Before (Your Old System)
+
 ```javascript
 // Firestore document
 {
@@ -112,6 +121,7 @@ function isAnnouncer() {
 ```
 
 ### ✅ After (Enterprise-Level)
+
 ```javascript
 // Firebase Auth UID = Firestore doc ID
 {
@@ -142,7 +152,7 @@ Your iOS app needs a small update to handle token refresh:
 // After announcer logs in
 Auth.auth().signIn(withEmail: email, password: password) { result, error in
     guard error == nil else { return }
-    
+
     // ⭐ IMPORTANT: Force token refresh to get custom claims
     Auth.auth().currentUser?.getIDTokenForcingRefresh(true) { token, error in
         // Now check claims
@@ -169,6 +179,7 @@ Auth.auth().signIn(withEmail: email, password: password) { result, error in
 **Cause**: Token doesn't have custom claim yet
 
 **Fix**:
+
 ```swift
 Auth.auth().currentUser?.getIDTokenForcingRefresh(true)
 ```
@@ -176,6 +187,7 @@ Auth.auth().currentUser?.getIDTokenForcingRefresh(true)
 ### "Cloud function not found"
 
 **Fix**:
+
 ```bash
 firebase deploy --only functions
 ```
@@ -183,6 +195,7 @@ firebase deploy --only functions
 ### Old announcers can't login
 
 **Fix**: Run migration script:
+
 ```bash
 node scripts/migrateAnnouncers.js
 ```
@@ -219,13 +232,13 @@ Firestore rules allow access
 
 ## 🎓 Why This Matters
 
-| Feature | Before | After |
-|---------|--------|-------|
-| **Password Storage** | Firestore ❌ | Firebase Auth ✅ |
-| **Auth Speed** | ~100-500ms query | ~0ms (in token) |
-| **Security** | Passwords visible in DB | Never stored in DB |
-| **UID Consistency** | Mismatched IDs | Auth UID = Doc ID |
-| **Best Practice** | Custom hack | Firebase official pattern |
+| Feature              | Before                  | After                     |
+| -------------------- | ----------------------- | ------------------------- |
+| **Password Storage** | Firestore ❌            | Firebase Auth ✅          |
+| **Auth Speed**       | ~100-500ms query        | ~0ms (in token)           |
+| **Security**         | Passwords visible in DB | Never stored in DB        |
+| **UID Consistency**  | Mismatched IDs          | Auth UID = Doc ID         |
+| **Best Practice**    | Custom hack             | Firebase official pattern |
 
 ---
 

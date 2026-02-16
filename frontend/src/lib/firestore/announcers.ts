@@ -31,7 +31,7 @@ export interface NewAnnouncerData {
 export async function addAnnouncer(announcerData: NewAnnouncerData): Promise<string> {
     try {
         const createAnnouncerFn = httpsCallable(functions, 'createAnnouncer');
-        
+
         const result = await createAnnouncerFn({
             email: announcerData.email,
             password: announcerData.password,
@@ -44,7 +44,7 @@ export async function addAnnouncer(announcerData: NewAnnouncerData): Promise<str
         });
 
         const data = result.data as { success: boolean; uid: string; message: string };
-        
+
         if (!data.success) {
             throw new Error(data.message || 'Failed to create announcer');
         }
@@ -73,7 +73,7 @@ export interface UpdateAnnouncerData {
 export async function updateAnnouncer(announcerId: string, announcerData: UpdateAnnouncerData): Promise<void> {
     try {
         const updateAnnouncerFn = httpsCallable(functions, 'updateAnnouncer');
-        
+
         const updatePayload: any = {
             announcerId,
             name: announcerData.name,

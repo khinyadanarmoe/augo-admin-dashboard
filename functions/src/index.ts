@@ -5,7 +5,7 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-import {sendUserNotification} from "./notifications";
+import { sendUserNotification } from "./notifications";
 import {
   createAnnouncer,
   updateAnnouncer,
@@ -14,7 +14,7 @@ import {
 } from "./announcers";
 
 // Export all functions
-export {sendUserNotification};
+export { sendUserNotification };
 
 // Export announcer management functions
-export {createAnnouncer, updateAnnouncer, deleteAnnouncer, setAnnouncerClaim};
+export { createAnnouncer, updateAnnouncer, deleteAnnouncer, setAnnouncerClaim };
