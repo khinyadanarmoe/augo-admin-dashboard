@@ -72,7 +72,7 @@ export interface Announcement {
   body?: string;
   startDate: Date | string;
   endDate: Date | string;
-  status: string;
+  status: import('./constants').AnnouncementStatus | string;
   link?: string;
   latitude?: number;
   longitude?: number;

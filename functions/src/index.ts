@@ -12,9 +12,16 @@ import {
   deleteAnnouncer,
   setAnnouncerClaim,
 } from "./announcers";
+import {
+  activateScheduledAnnouncements,
+  expireEndedAnnouncements,
+} from "./announcements";
 
 // Export all functions
 export { sendUserNotification };
 
 // Export announcer management functions
 export { createAnnouncer, updateAnnouncer, deleteAnnouncer, setAnnouncerClaim };
+
+// Export announcement scheduled functions
+export { activateScheduledAnnouncements, expireEndedAnnouncements };

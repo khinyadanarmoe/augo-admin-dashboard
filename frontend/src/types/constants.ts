@@ -36,9 +36,11 @@ export type ReportStatus = typeof REPORT_STATUS[keyof typeof REPORT_STATUS];
 
 // Announcement status
 export const ANNOUNCEMENT_STATUS = {
+  PENDING: 'pending',
   ACTIVE: 'active',
   SCHEDULED: 'scheduled',
   EXPIRED: 'expired',
+  DECLINED: 'declined',
   REMOVED: 'removed'
 } as const;
 
