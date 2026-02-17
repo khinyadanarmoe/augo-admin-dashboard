@@ -113,13 +113,18 @@ function AddARModel() {
   }, [existingPreviewUrl, previewImageUrl]);
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
 
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "number" ? parseFloat(value) : value,
+      [name]:
+        e.target instanceof HTMLInputElement && e.target.type === "number"
+          ? parseFloat(value)
+          : value,
     }));
   };
 

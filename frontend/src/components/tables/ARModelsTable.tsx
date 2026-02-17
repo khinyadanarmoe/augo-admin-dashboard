@@ -20,7 +20,12 @@ interface ARModelRowProps {
 }
 
 // Separate component to properly use useStorageUrl hook
-function ARModelRow({ model, onEdit, onDelete, formatCoordinates }: ARModelRowProps) {
+function ARModelRow({
+  model,
+  onEdit,
+  onDelete,
+  formatCoordinates,
+}: ARModelRowProps) {
   const { url: previewUrl } = useStorageUrl(model.previewPath);
 
   return (
@@ -75,8 +80,7 @@ function ARModelRow({ model, onEdit, onDelete, formatCoordinates }: ARModelRowPr
           {formatCoordinates(model.latitude, model.longitude)}
         </div>
         <div className="text-xs text-gray-500 dark:text-gray-400">
-          Catch: {model.catchRadius}m | Reveal:{" "}
-          {model.revealRadius}m
+          Catch: {model.catchRadius}m | Reveal: {model.revealRadius}m
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
