@@ -9,6 +9,7 @@ import {
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 import { ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
+import { useStorageUrl } from "@/lib/storageUtils";
 import dynamic from "next/dynamic";
 
 // Dynamically import map component to avoid SSR issues
@@ -22,7 +23,9 @@ const MapPicker = dynamic(() => import("@/components/MapPicker"), {
 });
 
 interface ARModelFormData {
-  title: string;
+  name: string;
+  slug: string;
+  category: string;
   description: string;
   latitude: number;
   longitude: number;
@@ -47,7 +50,9 @@ function AddARModel() {
   const isEditMode = query.edit === "true";
 
   const [formData, setFormData] = useState<ARModelFormData>({
-    title: "",
+    name: "",
+    slug: "",
+    category: "",
     description: "",
     latitude: DEFAULT_LOCATION.lat,
     longitude: DEFAULT_LOCATION.lng,
@@ -67,11 +72,16 @@ function AddARModel() {
   const [isLoading, setIsLoading] = useState(false);
   const [mapKey, setMapKey] = useState(0);
 
+  // Convert existing preview path to download URL
+  const { url: existingPreviewUrl } = useStorageUrl(existingPreviewPath);
+
   // Load data when in edit mode
   useEffect(() => {
     if (isEditMode && query.id) {
       setFormData({
-        title: (query.title as string) || "",
+        name: (query.name as string) || "",
+        slug: (query.slug as string) || "",
+        category: (query.category as string) || "",
         description: (query.description as string) || "",
         latitude: parseFloat(query.latitude as string) || DEFAULT_LOCATION.lat,
         longitude:
@@ -86,14 +96,21 @@ function AddARModel() {
         previewFile: null,
       });
 
-      setExistingModelPath((query.assetPath as string) || "");
-      setExistingPreviewPath((query.preview as string) || "");
-      setPreviewImageUrl((query.preview as string) || null);
+      setExistingModelPath((query.modelPath as string) || "");
+      setExistingPreviewPath((query.previewPath as string) || "");
+      // Don't set previewImageUrl here - it will be set by the useStorageUrl hook above
 
       // Trigger map re-render with new coordinates
       setMapKey((prev) => prev + 1);
     }
   }, [isEditMode, query]);
+
+  // Update preview image URL when the storage URL is loaded
+  useEffect(() => {
+    if (existingPreviewUrl && !previewImageUrl) {
+      setPreviewImageUrl(existingPreviewUrl);
+    }
+  }, [existingPreviewUrl, previewImageUrl]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -167,7 +184,12 @@ function AddARModel() {
 
     try {
       // Validate required fields
-      if (!formData.title || !formData.description) {
+      if (
+        !formData.name ||
+        !formData.slug ||
+        !formData.category ||
+        !formData.description
+      ) {
         alert("Please fill in all required fields");
         setIsLoading(false);
         return;
@@ -180,33 +202,37 @@ function AddARModel() {
         return;
       }
 
-      let assetPath = existingModelPath;
-      let previewPath = existingPreviewPath;
+      let modelPathValue = existingModelPath;
+      let previewPathValue = existingPreviewPath;
 
-      // Generate unique ID for file paths
-      const modelId =
-        query.id || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Generate unique timestamp for file paths
+      const fileTimestamp = Date.now();
 
       // Upload model file if provided
       if (formData.modelFile) {
         const fileExtension = formData.modelFile.name.split(".").pop();
-        const modelPath = `3d_models/ar/monsters/${modelId}.${fileExtension}`;
-        assetPath = await uploadFile(formData.modelFile, modelPath);
-        console.log("Model uploaded to:", assetPath);
+        const modelPath = `3d_models/ar/${formData.category}/${formData.slug}/${fileTimestamp}.${fileExtension}`;
+        modelPathValue = await uploadFile(formData.modelFile, modelPath);
+        console.log("Model uploaded to:", modelPathValue);
       }
 
       // Upload preview image if provided
       if (formData.previewFile) {
-        const previewFilePath = `3d_models/ar/monsters/preview_photo/${modelId}.jpg`;
-        previewPath = await uploadFile(formData.previewFile, previewFilePath);
-        console.log("Preview uploaded to:", previewPath);
+        const previewFilePath = `3d_models/ar/${formData.category}/${formData.slug}/preview.png`;
+        previewPathValue = await uploadFile(
+          formData.previewFile,
+          previewFilePath,
+        );
+        console.log("Preview uploaded to:", previewPathValue);
       }
 
       const modelData: Omit<ARSpawnData, "id" | "createdAt" | "updatedAt"> = {
-        title: formData.title,
+        name: formData.name,
+        slug: formData.slug,
+        category: formData.category,
         description: formData.description,
-        assetPath,
-        preview: previewPath,
+        modelPath: modelPathValue,
+        previewPath: previewPathValue,
         latitude: formData.latitude,
         longitude: formData.longitude,
         catchRadius: formData.catchRadius,
@@ -292,15 +318,15 @@ function AddARModel() {
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Title */}
-                  <div className="md:col-span-2">
+                  {/* Name */}
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Title *
+                      Name *
                     </label>
                     <input
                       type="text"
-                      name="title"
-                      value={formData.title}
+                      name="name"
+                      value={formData.name}
                       onChange={handleInputChange}
                       required
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -308,8 +334,46 @@ function AddARModel() {
                     />
                   </div>
 
+                  {/* Slug */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Slug *
+                    </label>
+                    <input
+                      type="text"
+                      name="slug"
+                      value={formData.slug}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="e.g., nervous_monster"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      URL-friendly identifier (lowercase, no spaces)
+                    </p>
+                  </div>
+
+                  {/* Category */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Category *
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Select category</option>
+                      <option value="special_char">Special Character</option>
+                      <option value="monsters">Monsters</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
                   {/* Description */}
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-3">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Description *
                     </label>
@@ -325,7 +389,7 @@ function AddARModel() {
                   </div>
 
                   {/* Active Status */}
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-3">
                     <label className="flex items-center space-x-2 cursor-pointer">
                       <input
                         type="checkbox"

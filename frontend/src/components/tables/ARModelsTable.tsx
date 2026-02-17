@@ -6,9 +6,142 @@ import {
   ARSpawnData,
 } from "@/lib/firestore/arSpawns";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useStorageUrl } from "@/lib/storageUtils";
 
 interface ARModelsTableProps {
   initialSearchTerm?: string;
+}
+
+interface ARModelRowProps {
+  model: ARSpawnData;
+  onEdit: (modelId: string) => void;
+  onDelete: (modelId: string) => void;
+  formatCoordinates: (lat: number, lng: number) => string;
+}
+
+// Separate component to properly use useStorageUrl hook
+function ARModelRow({ model, onEdit, onDelete, formatCoordinates }: ARModelRowProps) {
+  const { url: previewUrl } = useStorageUrl(model.previewPath);
+
+  return (
+    <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt={model.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <svg
+                className="w-8 h-8 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              </svg>
+            </div>
+          )}
+        </div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="text-sm font-medium text-gray-900 dark:text-white">
+          {model.name}
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          {model.slug}
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+          {model.category}
+        </span>
+      </td>
+      <td className="px-6 py-4">
+        <div className="text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
+          {model.description || "No description"}
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="text-sm text-gray-900 dark:text-white">
+          {formatCoordinates(model.latitude, model.longitude)}
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          Catch: {model.catchRadius}m | Reveal:{" "}
+          {model.revealRadius}m
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="text-sm text-gray-900 dark:text-white">
+          {model.point} pts | {model.coin_value} coins
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          Catchable: {model.catchable_time}s
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span
+          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+            model.isActive
+              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+              : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+          }`}
+        >
+          {model.isActive ? "Active" : "Inactive"}
+        </span>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => onEdit(model.id!)}
+            className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+            title="Edit"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={() => onDelete(model.id!)}
+            className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            title="Delete"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
 }
 
 export default function ARModelsTable({
@@ -70,9 +203,11 @@ export default function ARModelsTable({
   // Filter AR models
   const filteredModels = arModels.filter((model) => {
     const searchLower = searchTerm.toLowerCase();
-    const titleMatch =
+    const nameMatch =
       searchTerm === "" ||
-      model.title.toLowerCase().includes(searchLower) ||
+      model.name.toLowerCase().includes(searchLower) ||
+      model.slug.toLowerCase().includes(searchLower) ||
+      model.category.toLowerCase().includes(searchLower) ||
       model.description?.toLowerCase().includes(searchLower) ||
       model.id?.toLowerCase().includes(searchLower);
 
@@ -81,7 +216,7 @@ export default function ARModelsTable({
       (statusFilter === "active" && model.isActive) ||
       (statusFilter === "inactive" && !model.isActive);
 
-    return titleMatch && statusMatch;
+    return nameMatch && statusMatch;
   });
 
   const totalPages = Math.ceil(filteredModels.length / rowsPerPage);
@@ -115,7 +250,7 @@ export default function ARModelsTable({
       setDeleteModal({
         isOpen: true,
         modelId: model.id!,
-        title: model.title,
+        title: model.name,
       });
     }
   };
@@ -149,7 +284,7 @@ export default function ARModelsTable({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by title, description..."
+              placeholder="Search by name, slug, category..."
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
           </div>
@@ -181,7 +316,10 @@ export default function ARModelsTable({
                 Preview
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Title
+                Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Category
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Description
@@ -203,7 +341,7 @@ export default function ARModelsTable({
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center">
+                <td colSpan={8} className="px-6 py-12 text-center">
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                   </div>
@@ -212,7 +350,7 @@ export default function ARModelsTable({
             ) : paginatedModels.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
                 >
                   No AR models found
@@ -220,118 +358,13 @@ export default function ARModelsTable({
               </tr>
             ) : (
               paginatedModels.map((model) => (
-                <tr
+                <ARModelRow
                   key={model.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
-                      {model.preview ? (
-                        <img
-                          src={model.preview}
-                          alt={model.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <svg
-                            className="w-8 h-8 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                            />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {model.title}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
-                      {model.description || "No description"}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
-                      {formatCoordinates(model.latitude, model.longitude)}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Catch: {model.catchRadius}m | Reveal: {model.revealRadius}
-                      m
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
-                      {model.point} pts | {model.coin_value} coins
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Catchable: {model.catchable_time}s
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        model.isActive
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
-                      }`}
-                    >
-                      {model.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEdit(model.id!)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(model.id!)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                  model={model}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  formatCoordinates={formatCoordinates}
+                />
               ))
             )}
           </tbody>

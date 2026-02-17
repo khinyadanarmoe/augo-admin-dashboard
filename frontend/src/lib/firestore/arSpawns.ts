@@ -1,15 +1,15 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  getDocs, 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  getDocs,
   getDoc,
   deleteDoc,
   query,
   where,
   orderBy,
-  Timestamp 
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -17,10 +17,12 @@ const AR_SPAWNS_COLLECTION = 'ar_spawns';
 
 export interface ARSpawnData {
   id?: string;
-  title: string;
+  name: string;
+  slug: string;
+  category: string;
   description: string;
-  assetPath: string;
-  preview: string;
+  modelPath: string;
+  previewPath: string;
   latitude: number;
   longitude: number;
   catchRadius: number;
@@ -41,7 +43,7 @@ export async function fetchARSpawns(): Promise<ARSpawnData[]> {
     const arSpawnsRef = collection(db, AR_SPAWNS_COLLECTION);
     const q = query(arSpawnsRef, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
-    
+
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
@@ -59,7 +61,7 @@ export async function fetchARSpawnById(id: string): Promise<ARSpawnData | null> 
   try {
     const docRef = doc(db, AR_SPAWNS_COLLECTION, id);
     const docSnap = await getDoc(docRef);
-    
+
     if (docSnap.exists()) {
       return {
         id: docSnap.id,
@@ -143,8 +145,8 @@ export async function toggleARSpawnStatus(id: string, isActive: boolean): Promis
  * Fetch active AR spawns near a location
  */
 export async function fetchActiveARSpawnsNearLocation(
-  latitude: number, 
-  longitude: number, 
+  latitude: number,
+  longitude: number,
   radiusInKm: number = 10
 ): Promise<ARSpawnData[]> {
   try {
@@ -153,18 +155,18 @@ export async function fetchActiveARSpawnsNearLocation(
     const arSpawnsRef = collection(db, AR_SPAWNS_COLLECTION);
     const q = query(arSpawnsRef, where('isActive', '==', true));
     const querySnapshot = await getDocs(q);
-    
+
     const spawns = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     })) as ARSpawnData[];
-    
+
     // Filter by distance (simple implementation)
     return spawns.filter(spawn => {
       const distance = calculateDistance(
-        latitude, 
-        longitude, 
-        spawn.latitude, 
+        latitude,
+        longitude,
+        spawn.latitude,
         spawn.longitude
       );
       return distance <= radiusInKm;
@@ -182,9 +184,9 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const R = 6371; // Earth's radius in km
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a = 
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
