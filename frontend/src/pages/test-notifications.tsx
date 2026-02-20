@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
-import SendNotificationModal from '@/components/SendNotificationModal';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
-
+import React, { useState } from "react";
+import SendNotificationModal from "@/components/SendNotificationModal";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { useToast } from "@/contexts/ToastContext";
 
 const TestNotificationsPage: React.FC = () => {
   const { isAuthenticated } = useAdminAuth();
+  const toast = useToast();
   const [showModal, setShowModal] = useState(false);
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Test Notification System</h1>
-      
+
       <button
         onClick={() => setShowModal(true)}
         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
@@ -27,7 +28,7 @@ const TestNotificationsPage: React.FC = () => {
                 adminId="admin-id"
                 relatedPostId="test-post-id"
                 onNotificationSent={(id) => {
-                  alert(`Notification created: ${id}`);
+                  toast.success(`Notification created: ${id}`);
                   setShowModal(false);
                 }}
               />

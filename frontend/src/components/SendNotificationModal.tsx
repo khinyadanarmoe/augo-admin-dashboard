@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
-import { sendCommunityWarning, sendTemporaryBan, sendPermanentBan } from '@/lib/notifications';
+import React, { useState } from "react";
+import {
+  sendCommunityWarning,
+  sendTemporaryBan,
+  sendPermanentBan,
+} from "@/lib/notifications";
+import { useToast } from "@/contexts/ToastContext";
 
 interface SendNotificationProps {
   userId: string;
@@ -14,13 +19,16 @@ const SendNotificationModal: React.FC<SendNotificationProps> = ({
   adminId,
   relatedPostId,
   onNotificationSent,
-  className = ''
+  className = "",
 }) => {
+  const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [notificationType, setNotificationType] = useState<'warning' | 'temp_ban' | 'perm_ban'>('warning');
-  const [customMessage, setCustomMessage] = useState('');
-  const [banDuration, setBanDuration] = useState('3 days');
-  const [banReason, setBanReason] = useState('');
+  const [notificationType, setNotificationType] = useState<
+    "warning" | "temp_ban" | "perm_ban"
+  >("warning");
+  const [customMessage, setCustomMessage] = useState("");
+  const [banDuration, setBanDuration] = useState("3 days");
+  const [banReason, setBanReason] = useState("");
 
   const handleSendNotification = async () => {
     setIsLoading(true);
@@ -28,47 +36,49 @@ const SendNotificationModal: React.FC<SendNotificationProps> = ({
       let notificationId: string;
 
       switch (notificationType) {
-        case 'warning':
+        case "warning":
           notificationId = await sendCommunityWarning(
             userId,
             adminId,
-            relatedPostId || '',
-            customMessage || undefined
+            relatedPostId || "",
+            customMessage || undefined,
           );
           break;
-        
-        case 'temp_ban':
+
+        case "temp_ban":
           notificationId = await sendTemporaryBan(
             userId,
             adminId,
             banDuration,
             banReason,
-            relatedPostId
+            relatedPostId,
           );
           break;
-        
-        case 'perm_ban':
+
+        case "perm_ban":
           notificationId = await sendPermanentBan(
             userId,
             adminId,
             banReason,
-            relatedPostId
+            relatedPostId,
           );
           break;
       }
 
-      alert('Notification sent successfully!');
+      toast.success("Notification sent successfully!");
       onNotificationSent?.(notificationId);
     } catch (error) {
-      console.error('Failed to send notification:', error);
-      alert('Failed to send notification. Please try again.');
+      console.error("Failed to send notification:", error);
+      toast.error("Failed to send notification. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className={`bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 ${className}`}>
+    <div
+      className={`bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 ${className}`}
+    >
       <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
         Send User Notification
       </h3>
@@ -90,7 +100,7 @@ const SendNotificationModal: React.FC<SendNotificationProps> = ({
       </div>
 
       {/* Warning Custom Message */}
-      {notificationType === 'warning' && (
+      {notificationType === "warning" && (
         <div className="mb-4">
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
             Custom Message (Optional)
@@ -106,7 +116,7 @@ const SendNotificationModal: React.FC<SendNotificationProps> = ({
       )}
 
       {/* Ban Duration (for temporary ban) */}
-      {notificationType === 'temp_ban' && (
+      {notificationType === "temp_ban" && (
         <div className="mb-4">
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
             Ban Duration
@@ -126,10 +136,13 @@ const SendNotificationModal: React.FC<SendNotificationProps> = ({
       )}
 
       {/* Ban Reason (for temp and permanent bans) */}
-      {(notificationType === 'temp_ban' || notificationType === 'perm_ban') && (
+      {(notificationType === "temp_ban" || notificationType === "perm_ban") && (
         <div className="mb-4">
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-            Reason for {notificationType === 'temp_ban' ? 'Temporary Ban' : 'Permanent Ban'}
+            Reason for{" "}
+            {notificationType === "temp_ban"
+              ? "Temporary Ban"
+              : "Permanent Ban"}
           </label>
           <textarea
             value={banReason}
@@ -157,10 +170,14 @@ const SendNotificationModal: React.FC<SendNotificationProps> = ({
       {/* Send Button */}
       <button
         onClick={handleSendNotification}
-        disabled={isLoading || (notificationType !== 'warning' && !banReason.trim())}
+        disabled={
+          isLoading || (notificationType !== "warning" && !banReason.trim())
+        }
         className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white px-4 py-2 rounded-lg transition-colors duration-200 disabled:cursor-not-allowed"
       >
-        {isLoading ? 'Sending...' : `Send ${notificationType === 'warning' ? 'Warning' : 'Ban'} Notification`}
+        {isLoading
+          ? "Sending..."
+          : `Send ${notificationType === "warning" ? "Warning" : "Ban"} Notification`}
       </button>
 
       {/* Warning Text */}

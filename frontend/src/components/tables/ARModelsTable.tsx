@@ -7,6 +7,12 @@ import {
 } from "@/lib/firestore/arSpawns";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useStorageUrl } from "@/lib/storageUtils";
+import { RARITY_CATCHABLE_RANGES } from "@/types/constants";
+import { useToast } from "@/contexts/ToastContext";
+import {
+  SortableTableHeader,
+  RegularTableHeader,
+} from "@/components/ui/SortableTableHeader";
 
 interface ARModelsTableProps {
   initialSearchTerm?: string;
@@ -27,6 +33,23 @@ function ARModelRow({
   formatCoordinates,
 }: ARModelRowProps) {
   const { url: previewUrl } = useStorageUrl(model.previewPath);
+
+  // Get rarity color based on rarity type
+  const getRarityColor = (rarity: string) => {
+    const rarityColors: Record<string, string> = {
+      "Ultra Rare":
+        "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300",
+      Rare: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+      Uncommon:
+        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+      Common: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300",
+      "Very Common":
+        "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+      Unlimited:
+        "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+    };
+    return rarityColors[rarity] || "bg-gray-100 text-gray-800";
+  };
 
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -61,9 +84,17 @@ function ARModelRow({
         <div className="text-sm font-medium text-gray-900 dark:text-white">
           {model.name}
         </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          {model.slug}
-        </div>
+        {model.rarity ? (
+          <span
+            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${getRarityColor(model.rarity)}`}
+          >
+            {model.rarity}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400 mt-1 inline-block">
+            No rarity set
+          </span>
+        )}
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
@@ -152,13 +183,18 @@ export default function ARModelsTable({
   initialSearchTerm = "",
 }: ARModelsTableProps) {
   const router = useRouter();
+  const toast = useToast();
   const { isAuthenticated, isLoading } = useAdminAuth();
   const rowsPerPage = 10;
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [rarityFilter, setRarityFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [arModels, setArModels] = useState<ARSpawnData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sortBy, setSortBy] = useState<"point" | "coin_value" | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     modelId: string;
@@ -205,23 +241,36 @@ export default function ARModelsTable({
   }
 
   // Filter AR models
-  const filteredModels = arModels.filter((model) => {
+  let filteredModels = arModels.filter((model) => {
     const searchLower = searchTerm.toLowerCase();
     const nameMatch =
-      searchTerm === "" ||
-      model.name.toLowerCase().includes(searchLower) ||
-      model.slug.toLowerCase().includes(searchLower) ||
-      model.category.toLowerCase().includes(searchLower) ||
-      model.description?.toLowerCase().includes(searchLower) ||
-      model.id?.toLowerCase().includes(searchLower);
+      searchTerm === "" || model.name.toLowerCase().includes(searchLower);
+
+    const categoryMatch =
+      categoryFilter === "" || model.category === categoryFilter;
+
+    const rarityMatch = rarityFilter === "" || model.rarity === rarityFilter;
 
     const statusMatch =
       statusFilter === "" ||
       (statusFilter === "active" && model.isActive) ||
       (statusFilter === "inactive" && !model.isActive);
 
-    return nameMatch && statusMatch;
+    return nameMatch && categoryMatch && rarityMatch && statusMatch;
   });
+
+  // Apply sorting if enabled
+  if (sortBy) {
+    filteredModels = [...filteredModels].sort((a, b) => {
+      const valueA = a[sortBy];
+      const valueB = b[sortBy];
+      if (sortOrder === "asc") {
+        return valueA - valueB;
+      } else {
+        return valueB - valueA;
+      }
+    });
+  }
 
   const totalPages = Math.ceil(filteredModels.length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
@@ -232,6 +281,16 @@ export default function ARModelsTable({
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  const handleSortByRewards = (field: "point" | "coin_value") => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("desc");
+    }
+    setCurrentPage(1);
   };
 
   const handleEdit = (modelId: string) => {
@@ -264,9 +323,10 @@ export default function ARModelsTable({
       await deleteARSpawn(deleteModal.modelId);
       await loadARModels();
       setDeleteModal({ isOpen: false, modelId: "", title: "" });
+      toast.success("AR model deleted successfully");
     } catch (error) {
       console.error("Error deleting AR model:", error);
-      alert("Failed to delete AR model");
+      toast.error("Failed to delete AR model");
     }
   };
 
@@ -274,11 +334,19 @@ export default function ARModelsTable({
     return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   };
 
+  // Get unique categories from AR models
+  const uniqueCategories = Array.from(
+    new Set(arModels.map((m) => m.category).filter(Boolean)),
+  );
+
+  // Get rarity options from constants
+  const rarityOptions = Object.keys(RARITY_CATCHABLE_RANGES);
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg">
       {/* Filters */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Search */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -288,9 +356,47 @@ export default function ARModelsTable({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name, slug, category..."
+              placeholder="Search by name..."
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Category
+            </label>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">All Categories</option>
+              {uniqueCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Rarity Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Rarity
+            </label>
+            <select
+              value={rarityFilter}
+              onChange={(e) => setRarityFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">All Rarities</option>
+              {rarityOptions.map((rarity) => (
+                <option key={rarity} value={rarity}>
+                  {rarity}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Status Filter */}
@@ -316,30 +422,42 @@ export default function ARModelsTable({
         <table className="w-full">
           <thead className="bg-gray-50 dark:bg-gray-900">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Preview
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Category
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Description
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Location
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Rewards
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Actions
-              </th>
+              <RegularTableHeader
+                label="Preview"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              />
+              <RegularTableHeader
+                label="Name"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              />
+              <RegularTableHeader
+                label="Category"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              />
+              <RegularTableHeader
+                label="Description"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              />
+              <RegularTableHeader
+                label="Location"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              />
+              <SortableTableHeader
+                field="point"
+                label="Rewards"
+                currentSortField={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSortByRewards}
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              />
+              <RegularTableHeader
+                label="Status"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              />
+              <RegularTableHeader
+                label="Actions"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              />
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">

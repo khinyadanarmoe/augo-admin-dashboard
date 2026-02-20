@@ -83,6 +83,7 @@ export interface Announcement {
   submittedAt?: Date | string;
   rejectedAt?: Date | string | null;
   views?: number;
+  photoPaths?: string[];
 }
 
 // Warning related types

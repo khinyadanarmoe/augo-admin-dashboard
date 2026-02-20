@@ -70,6 +70,28 @@ export const AFFILIATION_TYPE = {
   STUDENT_ORG: 'Student Organization'
 } as const;
 
+// AR Model Rarity
+export const AR_RARITY = {
+  ULTRA_RARE: 'Ultra Rare',
+  RARE: 'Rare',
+  UNCOMMON: 'Uncommon',
+  COMMON: 'Common',
+  VERY_COMMON: 'Very Common',
+  UNLIMITED: 'Unlimited'
+} as const;
+
+export type ARRarity = typeof AR_RARITY[keyof typeof AR_RARITY];
+
+// Rarity catchable time ranges
+export const RARITY_CATCHABLE_RANGES = {
+  'Ultra Rare': { min: 1, max: 1, color: 'Mint' },
+  'Rare': { min: 2, max: 20, color: 'Dark Blue' },
+  'Uncommon': { min: 21, max: 79, color: 'Green' },
+  'Common': { min: 80, max: 150, color: 'Pink' },
+  'Very Common': { min: 151, max: 300, color: 'Red' },
+  'Unlimited': { min: 301, max: 999999, color: 'Gray' }
+} as const;
+
 // Specific Affiliations by Type
 export const AFFILIATIONS = {
   Faculty: [
@@ -133,7 +155,7 @@ export const LOCATIONS = {
   JOHNPAUL: 'John Paul',
   AUMALL: 'AU Mall',
   DORM: 'Dormitory',
-  
+
 
 } as const;
 

@@ -15,6 +15,7 @@ import { AFFILIATION_TYPES } from "@/types/export";
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 import { ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
+import { useToast } from "@/contexts/ToastContext";
 
 interface AnnouncerFormData {
   name: string;
@@ -29,6 +30,7 @@ interface AnnouncerFormData {
 
 function AddAnnouncer() {
   const router = useRouter();
+  const toast = useToast();
   const { query } = router;
   const isEditMode = query.edit === "true";
 
@@ -269,14 +271,14 @@ function AddAnnouncer() {
         !formData.affiliation_type ||
         !formData.affiliation_name
       ) {
-        alert("Please fill in all required fields");
+        toast.warning("Please fill in all required fields");
         setIsLoading(false);
         return;
       }
 
       // In create mode, password is required
       if (!isEditMode && !formData.password) {
-        alert("Password is required");
+        toast.warning("Password is required");
         setIsLoading(false);
         return;
       }
@@ -320,7 +322,7 @@ function AddAnnouncer() {
             updateData.profilePicture = imagePath;
           } catch (error: any) {
             console.error("Failed to upload image:", error);
-            alert(
+            toast.error(
               `Failed to upload image: ${error.message}. The announcer will be updated without the new image.`,
             );
             // Continue with update even if image upload fails
@@ -334,7 +336,7 @@ function AddAnnouncer() {
 
         await updateAnnouncer(query.id as string, updateData);
         console.log("Announcer updated with ID:", query.id);
-        alert("Announcer updated successfully!");
+        toast.success("Announcer updated successfully!");
       } else {
         // ✅ Create new announcer via Cloud Function (creates Auth + sets custom claim + creates Firestore doc)
         const newAnnouncerId = await addAnnouncer({
@@ -358,14 +360,14 @@ function AddAnnouncer() {
         }
 
         console.log("New announcer created with ID:", newAnnouncerId);
-        alert("Announcer created successfully!");
+        toast.success("Announcer created successfully!");
       }
 
       // Redirect back to announcers list
       router.push("/announcers");
     } catch (error) {
       console.error("Error saving announcer:", error);
-      alert(
+      toast.error(
         `Failed to ${isEditMode ? "update" : "create"} announcer. Please try again.`,
       );
     } finally {

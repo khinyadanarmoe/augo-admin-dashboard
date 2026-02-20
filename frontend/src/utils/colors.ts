@@ -54,3 +54,18 @@ export const ActionColors = {
   primary: 'bg-purple-600 hover:bg-purple-700 text-white',
   secondary: 'bg-gray-600 hover:bg-gray-700 text-white'
 };
+
+// Announcement status colors for consistent theming
+export const AnnouncementStatusColors = {
+  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+  active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+  scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+  expired: 'bg-gray-700 text-white dark:bg-gray-800 dark:text-gray-100',
+  declined: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+  removed: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
+};
+
+export const getAnnouncementStatusColor = (status: string) => {
+  const normalizedStatus = status.toLowerCase().trim();
+  return AnnouncementStatusColors[normalizedStatus as keyof typeof AnnouncementStatusColors] || AnnouncementStatusColors.pending;
+};

@@ -27,6 +27,7 @@ export interface ARSpawnData {
   longitude: number;
   catchRadius: number;
   revealRadius: number;
+  rarity: string;
   catchable_time: number;
   coin_value: number;
   point: number;

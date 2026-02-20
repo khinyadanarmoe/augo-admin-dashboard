@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { collection, doc, query, where, orderBy, limit, getDocs, getDoc, getCountFromServer, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { POST_CATEGORIES } from '@/types/constants';
+import { subscribeToPendingAnnouncements } from '@/lib/firestore/announcements';
+import { subscribeToRecentReports } from '@/lib/firestore/reports';
 
 export interface DashboardMetrics {
   activeUsers: number;
@@ -111,17 +113,140 @@ export function useDashboard() {
     }
   };
 
+  // Set up real-time subscriptions for announcements and reports (runs once on mount)
+  useEffect(() => {
+    const unsubAnnouncements = subscribeToPendingAnnouncements(
+      (announcements) => {
+        console.log('Received pending announcements:', announcements);
+        // Transform to dashboard format
+        const pendingAnnouncements = announcements.map(ann => {
+          const timestamp = ann.submittedAt;
+          const createdAt = timestamp ? new Date(timestamp) : new Date();
+          const now = new Date();
+          const diffMs = now.getTime() - createdAt.getTime();
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+
+          let submittedAt = '';
+          if (diffHours < 1) {
+            submittedAt = 'Just now';
+          } else if (diffHours < 24) {
+            submittedAt = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+          } else {
+            submittedAt = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+          }
+
+          let priority: 'low' | 'medium' | 'high' = 'medium';
+          if (ann.isUrgent === true) {
+            priority = 'high';
+          }
+
+          const scheduledFor = ann.startDate ?
+            new Date(ann.startDate).toLocaleString() :
+            undefined;
+
+          return {
+            id: ann.id,
+            title: ann.title || 'Untitled',
+            content: ann.body || '',
+            author: ann.createdByName || 'Unknown',
+            type: ann.department || 'general',
+            priority,
+            submittedAt,
+            scheduledFor,
+            status: ann.status
+          };
+        });
+
+        console.log('Transformed pending announcements for dashboard:', pendingAnnouncements);
+        
+        setData(prevData => {
+          const newData = {
+            metrics: prevData?.metrics || { activeUsers: 0, totalPosts: 0, pendingReports: 0, pendingAnnouncements: 0 },
+            recentReports: prevData?.recentReports || [],
+            pendingAnnouncements,
+            topPosts: prevData?.topPosts || [],
+            postCategories: prevData?.postCategories || [],
+            topLocations: prevData?.topLocations || [],
+            recentFlaggedUsers: prevData?.recentFlaggedUsers || [],
+            postsOverTime: prevData?.postsOverTime || []
+          };
+          console.log('Setting dashboard data with pendingAnnouncements:', newData);
+          return newData;
+        });
+      },
+      (error) => {
+        console.error('Error in pending announcements subscription:', error);
+      }
+    );
+
+    const unsubReports = subscribeToRecentReports(
+      (reports) => {
+        console.log('Received recent reports:', reports);
+        // Transform to dashboard format
+        const recentReports = reports.map(report => {
+          const reportDate = report.reportDate?.toDate ? report.reportDate.toDate() : new Date(report.reportDate);
+          const now = new Date();
+          const diffMs = now.getTime() - reportDate.getTime();
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+
+          let reportedAt = '';
+          if (diffMins < 60) {
+            reportedAt = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+          } else if (diffHours < 24) {
+            reportedAt = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+          } else {
+            reportedAt = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+          }
+
+          return {
+            id: report.id,
+            type: report.category || 'Unknown',
+            postTitle: report.postContent?.substring(0, 50) || 'No content',
+            reporter: report.reporter?.name || 'Anonymous',
+            reason: report.description || 'No reason provided',
+            status: report.status || 'pending',
+            reportedAt
+          };
+        });
+
+        setData(prevData => {
+          const newData = {
+            metrics: prevData?.metrics || { activeUsers: 0, totalPosts: 0, pendingReports: 0, pendingAnnouncements: 0 },
+            recentReports,
+            pendingAnnouncements: prevData?.pendingAnnouncements || [],
+            topPosts: prevData?.topPosts || [],
+            postCategories: prevData?.postCategories || [],
+            topLocations: prevData?.topLocations || [],
+            recentFlaggedUsers: prevData?.recentFlaggedUsers || [],
+            postsOverTime: prevData?.postsOverTime || []
+          };
+          console.log('Setting dashboard data with recentReports:', newData);
+          return newData;
+        });
+      },
+      (error) => {
+        console.error('Error in recent reports subscription:', error);
+      }
+    );
+
+    return () => {
+      unsubAnnouncements();
+      unsubReports();
+    };
+  }, []); // Only run once on mount
+
   useEffect(() => {
     async function fetchDashboardData() {
       try {
         setLoading(true);
         setError(null);
 
-        // Fetch all data in parallel
+        // Fetch non-realtime data in parallel
         const [
           metrics,
-          recentReports,
-          pendingAnnouncements,
           recentFlaggedUsers,
           topPosts,
           postCategories,
@@ -129,8 +254,6 @@ export function useDashboard() {
           postsOverTime
         ] = await Promise.all([
           fetchMetrics(),
-          fetchRecentReports(),
-          fetchPendingAnnouncements(),
           fetchRecentFlaggedUsers(),
           fetchTopPosts(),
           fetchPostCategories(),
@@ -138,16 +261,16 @@ export function useDashboard() {
           fetchPostsOverTime(timeRange)
         ]);
 
-        setData({
+        setData(prevData => ({
           metrics,
-          recentReports,
-          pendingAnnouncements,
+          recentReports: prevData?.recentReports || [],
+          pendingAnnouncements: prevData?.pendingAnnouncements || [],
           topPosts,
           postCategories,
           topLocations,
           recentFlaggedUsers,
           postsOverTime
-        });
+        }));
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
@@ -206,117 +329,6 @@ async function fetchMetrics(): Promise<DashboardMetrics> {
       pendingReports: 0,
       pendingAnnouncements: 0
     };
-  }
-}
-
-async function fetchRecentReports(): Promise<RecentReport[]> {
-  try {
-    const reportsQuery = query(
-      collection(db, 'reports'),
-      orderBy('reportDate', 'desc'),
-      limit(5)
-    );
-
-    const snapshot = await getDocs(reportsQuery);
-
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      const reportDate = data.reportDate?.toDate ? data.reportDate.toDate() : new Date(data.reportDate);
-      const now = new Date();
-      const diffMs = now.getTime() - reportDate.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      let reportedAt = '';
-      if (diffMins < 60) {
-        reportedAt = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-      } else if (diffHours < 24) {
-        reportedAt = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-      } else {
-        reportedAt = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-      }
-
-      return {
-        id: doc.id,
-        type: data.category || 'Unknown',
-        postTitle: data.postContent?.substring(0, 50) || 'No content',
-        reporter: data.reporter?.name || 'Anonymous',
-        reason: data.description || 'No reason provided',
-        status: data.status || 'pending',
-        reportedAt
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching recent reports:', error);
-    return [];
-  }
-}
-
-async function fetchPendingAnnouncements(): Promise<PendingAnnouncement[]> {
-  try {
-    // Query without orderBy to avoid index issues - just get pending announcements
-    const announcementsQuery = query(
-      collection(db, 'announcements'),
-      where('status', '==', 'pending'),
-      limit(5)
-    );
-
-    const snapshot = await getDocs(announcementsQuery);
-
-    console.log('Pending announcements fetched:', snapshot.size);
-
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      console.log('Announcement data:', data);
-
-      // Handle both createdAt and submitedAt (note: misspelled in DB)
-      const timestamp = data.submitedAt || data.createdAt;
-      const createdAt = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
-      const now = new Date();
-      const diffMs = now.getTime() - createdAt.getTime();
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      let submittedAt = '';
-      if (diffHours < 1) {
-        submittedAt = 'Just now';
-      } else if (diffHours < 24) {
-        submittedAt = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-      } else {
-        submittedAt = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-      }
-
-      // Determine priority based on isUrgent flag or type
-      let priority: 'low' | 'medium' | 'high' = 'medium';
-      if (data.isUrgent === true) {
-        priority = 'high';
-      } else if (data.type === 'urgent' || data.category === 'urgent') {
-        priority = 'high';
-      } else if (data.type === 'general' || data.category === 'general') {
-        priority = 'low';
-      }
-
-      // Format scheduled date if available
-      const scheduledFor = data.startDate ?
-        new Date(data.startDate?.toDate ? data.startDate.toDate() : data.startDate).toLocaleString() :
-        undefined;
-
-      return {
-        id: doc.id,
-        title: data.title || 'Untitled',
-        content: data.body || data.content || data.description || '',
-        author: data.createdByName || data.announcerName || data.author || 'Unknown',
-        type: data.department || data.type || data.category || 'general',
-        priority,
-        submittedAt,
-        scheduledFor,
-        status: data.status
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching pending announcements:', error);
-    return [];
   }
 }
 

@@ -10,7 +10,9 @@ import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 import { ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import { useStorageUrl } from "@/lib/storageUtils";
+import { AR_RARITY, RARITY_CATCHABLE_RANGES } from "@/types/constants";
 import dynamic from "next/dynamic";
+import { useToast } from "@/contexts/ToastContext";
 
 // Dynamically import map component to avoid SSR issues
 const MapPicker = dynamic(() => import("@/components/MapPicker"), {
@@ -31,6 +33,7 @@ interface ARModelFormData {
   longitude: number;
   catchRadius: number;
   revealRadius: number;
+  rarity: string;
   catchable_time: number;
   coin_value: number;
   point: number;
@@ -47,6 +50,7 @@ const DEFAULT_LOCATION = {
 function AddARModel() {
   const router = useRouter();
   const { query } = router;
+  const toast = useToast();
   const isEditMode = query.edit === "true";
 
   const [formData, setFormData] = useState<ARModelFormData>({
@@ -58,6 +62,7 @@ function AddARModel() {
     longitude: DEFAULT_LOCATION.lng,
     catchRadius: 8,
     revealRadius: 30,
+    rarity: "",
     catchable_time: 100,
     coin_value: 0.2,
     point: 10,
@@ -88,6 +93,7 @@ function AddARModel() {
           parseFloat(query.longitude as string) || DEFAULT_LOCATION.lng,
         catchRadius: parseInt(query.catchRadius as string) || 8,
         revealRadius: parseInt(query.revealRadius as string) || 30,
+        rarity: (query.rarity as string) || "",
         catchable_time: parseInt(query.catchable_time as string) || 100,
         coin_value: parseFloat(query.coin_value as string) || 0.2,
         point: parseInt(query.point as string) || 10,
@@ -118,6 +124,18 @@ function AddARModel() {
     >,
   ) => {
     const { name, value } = e.target;
+
+    // If rarity is changed, reset catchable_time to fit within range
+    if (name === "rarity" && value) {
+      const range =
+        RARITY_CATCHABLE_RANGES[value as keyof typeof RARITY_CATCHABLE_RANGES];
+      setFormData((prev) => ({
+        ...prev,
+        rarity: value,
+        catchable_time: range.min,
+      }));
+      return;
+    }
 
     setFormData((prev) => ({
       ...prev,
@@ -193,16 +211,34 @@ function AddARModel() {
         !formData.name ||
         !formData.slug ||
         !formData.category ||
-        !formData.description
+        !formData.description ||
+        !formData.rarity
       ) {
-        alert("Please fill in all required fields");
+        toast.warning("Please fill in all required fields");
+        setIsLoading(false);
+        return;
+      }
+
+      // Validate catchable_time is within rarity range
+      const rarityRange =
+        RARITY_CATCHABLE_RANGES[
+          formData.rarity as keyof typeof RARITY_CATCHABLE_RANGES
+        ];
+      if (
+        rarityRange &&
+        (formData.catchable_time < rarityRange.min ||
+          formData.catchable_time > rarityRange.max)
+      ) {
+        toast.error(
+          `Catchable time must be between ${rarityRange.min} and ${rarityRange.max} for ${formData.rarity} rarity`,
+        );
         setIsLoading(false);
         return;
       }
 
       // In create mode, files are required
       if (!isEditMode && (!formData.modelFile || !formData.previewFile)) {
-        alert("Please upload both 3D model and preview image");
+        toast.warning("Please upload both 3D model and preview image");
         setIsLoading(false);
         return;
       }
@@ -242,6 +278,7 @@ function AddARModel() {
         longitude: formData.longitude,
         catchRadius: formData.catchRadius,
         revealRadius: formData.revealRadius,
+        rarity: formData.rarity,
         catchable_time: formData.catchable_time,
         coin_value: formData.coin_value,
         point: formData.point,
@@ -251,18 +288,18 @@ function AddARModel() {
       if (isEditMode && query.id) {
         await updateARSpawn(query.id as string, modelData);
         console.log("AR model updated with ID:", query.id);
-        alert("AR model updated successfully!");
+        toast.success("AR model updated successfully!");
       } else {
         const newModelId = await addARSpawn(modelData);
         console.log("New AR model created with ID:", newModelId);
-        alert("AR model created successfully!");
+        toast.success("AR model created successfully!");
       }
 
       // Redirect back to AR models list
       router.push("/ar-models");
     } catch (error) {
       console.error("Error saving AR model:", error);
-      alert(
+      toast.error(
         `Failed to ${isEditMode ? "update" : "create"} AR model. Please try again.`,
       );
     } finally {
@@ -562,6 +599,71 @@ function AddARModel() {
                 <h2 className="text-xl font-semibold mb-4">Game Parameters</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Rarity */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Rarity *
+                    </label>
+                    <select
+                      name="rarity"
+                      value={formData.rarity}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">Select rarity</option>
+                      {Object.entries(RARITY_CATCHABLE_RANGES).map(
+                        ([rarity, info]) => (
+                          <option key={rarity} value={rarity}>
+                            {rarity} - Catchable:{" "}
+                            {info.min === info.max
+                              ? info.min
+                              : `${info.min}-${info.max}`}{" "}
+                            time{info.max > 1 ? "s" : ""}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Determines how many times this AR model can be caught
+                    </p>
+                  </div>
+
+                  {/* Catchable Time */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Catchable Times (counts) *
+                    </label>
+                    <input
+                      type="number"
+                      name="catchable_time"
+                      value={formData.catchable_time}
+                      onChange={handleInputChange}
+                      min={
+                        formData.rarity
+                          ? RARITY_CATCHABLE_RANGES[
+                              formData.rarity as keyof typeof RARITY_CATCHABLE_RANGES
+                            ]?.min
+                          : 1
+                      }
+                      max={
+                        formData.rarity
+                          ? RARITY_CATCHABLE_RANGES[
+                              formData.rarity as keyof typeof RARITY_CATCHABLE_RANGES
+                            ]?.max
+                          : 999999
+                      }
+                      required
+                      disabled={!formData.rarity}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {formData.rarity
+                        ? `Range for ${formData.rarity}: ${RARITY_CATCHABLE_RANGES[formData.rarity as keyof typeof RARITY_CATCHABLE_RANGES]?.min}-${RARITY_CATCHABLE_RANGES[formData.rarity as keyof typeof RARITY_CATCHABLE_RANGES]?.max}`
+                        : "Select rarity first to set catchable time range"}
+                    </p>
+                  </div>
+
                   {/* Catch Radius */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -597,25 +699,6 @@ function AddARModel() {
                     />
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       Distance at which the monster becomes visible
-                    </p>
-                  </div>
-
-                  {/* Catchable Time */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Catchable Time (seconds) *
-                    </label>
-                    <input
-                      type="number"
-                      name="catchable_time"
-                      value={formData.catchable_time}
-                      onChange={handleInputChange}
-                      min="1"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      How long users have to catch the monster
                     </p>
                   </div>
 

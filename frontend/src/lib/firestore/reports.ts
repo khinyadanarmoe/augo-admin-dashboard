@@ -1,15 +1,16 @@
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  query, 
-  orderBy, 
-  where, 
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  query,
+  orderBy,
+  where,
   onSnapshot,
   DocumentData,
   QuerySnapshot,
-  Unsubscribe
+  Unsubscribe,
+  limit
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Report } from "@/types/export";
@@ -22,7 +23,7 @@ export const getReports = async (): Promise<Report[]> => {
     const reportsCollection = collection(db, 'reports');
     const q = query(reportsCollection, orderBy('reportDate', 'desc'));
     const snapshot = await getDocs(q);
-    
+
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -41,7 +42,7 @@ export const subscribeToReports = (
 ): Unsubscribe => {
   const reportsCollection = collection(db, 'reports');
   const q = query(reportsCollection, orderBy('reportDate', 'desc'));
-  
+
   return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
     const reports: Report[] = snapshot.docs.map(doc => ({
       id: doc.id,
@@ -54,18 +55,59 @@ export const subscribeToReports = (
 };
 
 /**
+ * Subscribe to recent reports for dashboard (real-time, limited to 5)
+ * Note: Sorts in memory to avoid requiring a composite index
+ */
+export const subscribeToRecentReports = (
+  callback: (reports: Report[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  const reportsCollection = collection(db, 'reports');
+  const q = query(
+    reportsCollection, 
+    where('status', '==', 'pending'),
+    limit(50) // Get more to sort in memory
+  );
+  
+  return onSnapshot(
+    q,
+    (snapshot: QuerySnapshot<DocumentData>) => {
+      const reports: Report[] = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Report))
+        .sort((a, b) => {
+          // Sort by reportDate descending
+          const dateA = a.reportDate?.toDate ? a.reportDate.toDate().getTime() : 0;
+          const dateB = b.reportDate?.toDate ? b.reportDate.toDate().getTime() : 0;
+          return dateB - dateA;
+        })
+        .slice(0, 5); // Take top 5 after sorting
+      callback(reports);
+    },
+    (error) => {
+      console.error('Error in recent reports subscription:', error);
+      if (onError) {
+        onError(error);
+      }
+    }
+  );
+};
+
+/**
  * Get reports by status
  */
 export const getReportsByStatus = async (status: string): Promise<Report[]> => {
   try {
     const reportsCollection = collection(db, 'reports');
     const q = query(
-      reportsCollection, 
+      reportsCollection,
       where('status', '==', status),
       orderBy('reportDate', 'desc')
     );
     const snapshot = await getDocs(q);
-    
+
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -83,12 +125,12 @@ export const getReportsByCategory = async (category: string): Promise<Report[]> 
   try {
     const reportsCollection = collection(db, 'reports');
     const q = query(
-      reportsCollection, 
+      reportsCollection,
       where('category', '==', category),
       orderBy('reportDate', 'desc')
     );
     const snapshot = await getDocs(q);
-    
+
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -123,14 +165,14 @@ export const resolveReportsByPostId = async (postId: string): Promise<void> => {
     const reportsCollection = collection(db, 'reports');
     const q = query(reportsCollection, where('postId', '==', postId));
     const snapshot = await getDocs(q);
-    
-    const updatePromises = snapshot.docs.map(doc => 
+
+    const updatePromises = snapshot.docs.map(doc =>
       updateDoc(doc.ref, {
         status: 'resolved',
         updatedAt: new Date().toISOString()
       })
     );
-    
+
     await Promise.all(updatePromises);
   } catch (error) {
     console.error('Error resolving reports by postId:', error);
@@ -144,21 +186,21 @@ export const resolveReportsByPostId = async (postId: string): Promise<void> => {
 export const resolveReportsByPostIds = async (postIds: string[]): Promise<void> => {
   try {
     const reportsCollection = collection(db, 'reports');
-    
+
     // Process in batch to avoid Firebase limitations
     const batchSize = 10;
     for (let i = 0; i < postIds.length; i += batchSize) {
       const batchPostIds = postIds.slice(i, i + batchSize);
       const q = query(reportsCollection, where('postId', 'in', batchPostIds));
       const snapshot = await getDocs(q);
-      
-      const updatePromises = snapshot.docs.map(doc => 
+
+      const updatePromises = snapshot.docs.map(doc =>
         updateDoc(doc.ref, {
           status: 'resolved',
           updatedAt: new Date().toISOString()
         })
       );
-      
+
       await Promise.all(updatePromises);
     }
   } catch (error) {
@@ -174,13 +216,13 @@ export const getUrgentReports = async (threshold: number = 5): Promise<Report[]>
   try {
     const reportsCollection = collection(db, 'reports');
     const q = query(
-      reportsCollection, 
+      reportsCollection,
       where('reportCount', '>=', threshold),
       where('status', '==', 'pending'),
       orderBy('reportCount', 'desc')
     );
     const snapshot = await getDocs(q);
-    
+
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()

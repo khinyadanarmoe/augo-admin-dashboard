@@ -1,7 +1,12 @@
 import type { AppProps } from "next/app";
 // @ts-ignore: allow importing global CSS without type declarations
 import "@/styles/globals.css";
+import { ToastProvider } from "@/contexts/ToastContext";
 
 export default function App({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />;
+  return (
+    <ToastProvider>
+      <Component {...pageProps} />
+    </ToastProvider>
+  );
 }

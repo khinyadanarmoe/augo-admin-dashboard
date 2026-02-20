@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { useToast } from "@/contexts/ToastContext";
 
 interface PendingAnnouncement {
   id: string;
@@ -14,12 +15,15 @@ interface PendingAnnouncement {
 
 interface PendingAnnouncementApprovalsProps {
   announcements?: PendingAnnouncement[];
+  onDataChange?: () => void; // Callback to refresh parent data
 }
 
 export default function PendingAnnouncementApprovals({
   announcements,
+  onDataChange,
 }: PendingAnnouncementApprovalsProps) {
   const router = useRouter();
+  const toast = useToast();
   const sampleAnnouncements: PendingAnnouncement[] = [
     {
       id: "1",
@@ -57,11 +61,21 @@ export default function PendingAnnouncementApprovals({
 
   const [displayAnnouncements, setDisplayAnnouncements] = useState<
     PendingAnnouncement[]
-  >(announcements !== undefined ? announcements : sampleAnnouncements);
+  >([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('PendingAnnouncementApprovals received announcements:', announcements);
+    console.log('announcements type:', typeof announcements, 'isArray:', Array.isArray(announcements));
     if (announcements !== undefined) {
+      console.log('Setting displayAnnouncements to:', announcements);
       setDisplayAnnouncements(announcements);
+      setLoading(false);
+    } else {
+      console.log('announcements is undefined, using sample data');
+      // If no announcements prop provided, fall back to sample data
+      setDisplayAnnouncements(sampleAnnouncements);
+      setLoading(false);
     }
   }, [announcements]);
 
@@ -80,25 +94,39 @@ export default function PendingAnnouncementApprovals({
 
   const handleApprove = async (id: string) => {
     try {
-      const { updateAnnouncement } =
+      const { approveAnnouncement } =
         await import("@/lib/firestore/announcements");
-      await updateAnnouncement(id, { status: "approved" });
+      await approveAnnouncement(id);
       setDisplayAnnouncements((prev) => prev.filter((item) => item.id !== id));
+
+      // Refresh parent data if callback provided
+      if (onDataChange) {
+        onDataChange();
+      }
+
+      toast.success("Announcement approved and scheduled successfully!");
     } catch (error) {
       console.error("Error approving announcement:", error);
-      alert("Failed to approve announcement");
+      toast.error("Failed to approve announcement");
     }
   };
 
   const handleReject = async (id: string) => {
     try {
-      const { updateAnnouncement } =
+      const { declineAnnouncement } =
         await import("@/lib/firestore/announcements");
-      await updateAnnouncement(id, { status: "rejected" });
+      await declineAnnouncement(id);
       setDisplayAnnouncements((prev) => prev.filter((item) => item.id !== id));
+
+      // Refresh parent data if callback provided
+      if (onDataChange) {
+        onDataChange();
+      }
+
+      toast.success("Announcement declined successfully!");
     } catch (error) {
-      console.error("Error rejecting announcement:", error);
-      alert("Failed to reject announcement");
+      console.error("Error declining announcement:", error);
+      toast.error("Failed to decline announcement");
     }
   };
 
@@ -118,73 +146,80 @@ export default function PendingAnnouncementApprovals({
       </div>
 
       <div className="space-y-4">
-        {displayAnnouncements.map((announcement) => (
-          <div
-            key={announcement.id}
-            className="border border-gray-200 dark:border-gray-600 rounded-lg p-4"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div
-                className="flex-1 cursor-pointer"
-                onClick={() => handleAnnouncementClick(announcement.id)}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                    {announcement.title}
-                  </h4>
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(announcement.priority)}`}
-                  >
-                    {announcement.priority} priority
-                  </span>
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                  {announcement.content}
-                </p>
-              </div>
-              <div className="flex items-center space-x-2 ml-4">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleApprove(announcement.id);
-                  }}
-                  className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleReject(announcement.id);
-                  }}
-                  className="px-3 py-1 text-xs font-medium bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-              <div className="flex items-center space-x-4">
-                <span>By {announcement.author}</span>
-                <span className="capitalize">{announcement.type}</span>
-                <span>Submitted {announcement.submittedAt}</span>
-              </div>
-              {announcement.scheduledFor && (
-                <span>Scheduled for {announcement.scheduledFor}</span>
-              )}
-            </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+            <span className="ml-2 text-gray-600 dark:text-gray-400">
+              Loading...
+            </span>
           </div>
-        ))}
-      </div>
+        ) : displayAnnouncements.length > 0 ? (
+          displayAnnouncements.map((announcement) => (
+            <div
+              key={announcement.id}
+              className="border border-gray-200 dark:border-gray-600 rounded-lg p-4"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div
+                  className="flex-1 cursor-pointer"
+                  onClick={() => handleAnnouncementClick(announcement.id)}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                      {announcement.title}
+                    </h4>
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(announcement.priority)}`}
+                    >
+                      {announcement.priority} priority
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                    {announcement.content}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2 ml-4">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleApprove(announcement.id);
+                    }}
+                    className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReject(announcement.id);
+                    }}
+                    className="px-3 py-1 text-xs font-medium bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
 
-      {displayAnnouncements.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-gray-500 dark:text-gray-400">
-            No pending announcements
-          </p>
-        </div>
-      )}
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex items-center space-x-4">
+                  <span>By {announcement.author}</span>
+                  <span className="capitalize">{announcement.type}</span>
+                  <span>Submitted {announcement.submittedAt}</span>
+                </div>
+                {announcement.scheduledFor && (
+                  <span>Scheduled for {announcement.scheduledFor}</span>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-500 dark:text-gray-400">
+              No pending announcements
+            </p>
+          </div>
+        )}
+      </div>
 
       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
         <a
