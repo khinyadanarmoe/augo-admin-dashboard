@@ -3,7 +3,7 @@ import React from "react";
 interface SortableTableHeaderProps<T extends string> {
   field: T;
   label: string;
-  currentSortField: T;
+  currentSortField: T | null;
   sortOrder: "asc" | "desc";
   onSort: (field: T) => void;
   className?: string;
