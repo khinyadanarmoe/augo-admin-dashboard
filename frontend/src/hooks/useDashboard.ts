@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, doc, query, where, orderBy, limit, getDocs, getDoc, getCountFromServer, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { POST_CATEGORIES, CATEGORY_LABELS } from '@/types/constants';
+import { POST_CATEGORIES, CATEGORY_LABELS, ReportStatus } from '@/types/constants';
 import { subscribeToPendingAnnouncements } from '@/lib/firestore/announcements';
 import { subscribeToRecentReports } from '@/lib/firestore/reports';
 
@@ -18,7 +18,7 @@ export interface RecentReport {
   postTitle: string;
   reporter: string;
   reason: string;
-  status: 'pending' | 'reviewed' | 'resolved';
+  status: ReportStatus;
   reportedAt: string;
 }
 

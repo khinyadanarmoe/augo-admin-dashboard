@@ -1,9 +1,9 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  addDoc, 
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
   serverTimestamp,
   onSnapshot,
   query,
@@ -30,7 +30,8 @@ export const DEFAULT_CONFIGURATION: Omit<AdminConfiguration, 'id' | 'lastUpdated
   dailyFreeCoin: 10,
   maxActiveAnnouncements: 3,
   urgentAnnouncementThreshold: 48,
-  banThreshold: 5
+  banThreshold: 5,
+  banDurationDays: 30
 };
 
 /**
@@ -43,7 +44,7 @@ export const getAdminConfiguration = async (): Promise<AdminConfiguration> => {
 
     if (configSnap.exists()) {
       const data = configSnap.data();
-      
+
       // Migrate old document structure - remove adminInterfaceSettings if it exists
       const cleanedData = {
         id: configSnap.id,
@@ -55,6 +56,7 @@ export const getAdminConfiguration = async (): Promise<AdminConfiguration> => {
         maxActiveAnnouncements: data.maxActiveAnnouncements || DEFAULT_CONFIGURATION.maxActiveAnnouncements,
         urgentAnnouncementThreshold: data.urgentAnnouncementThreshold || DEFAULT_CONFIGURATION.urgentAnnouncementThreshold,
         banThreshold: data.banThreshold || DEFAULT_CONFIGURATION.banThreshold,
+        banDurationDays: data.banDurationDays || DEFAULT_CONFIGURATION.banDurationDays,
         lastUpdated: data.lastUpdated || new Date().toISOString(),
         updatedBy: data.updatedBy || 'migration'
       };
@@ -81,7 +83,7 @@ export const getAdminConfiguration = async (): Promise<AdminConfiguration> => {
     }
   } catch (error) {
     console.error('Error fetching configuration:', error);
-    
+
     // Return default configuration as fallback
     return {
       id: DEFAULT_CONFIG_ID,
@@ -100,7 +102,7 @@ export const updateAdminConfiguration = async (
   currentConfig: AdminConfiguration
 ): Promise<AdminConfiguration> => {
   const currentUser = auth.currentUser;
-  
+
   if (!currentUser) {
     throw new Error('User must be authenticated to update configuration');
   }
@@ -119,7 +121,7 @@ export const updateAdminConfiguration = async (
     Object.keys(newConfig).forEach((key) => {
       const newValue = (newConfig as any)[key];
       const oldValue = (currentConfig as any)[key];
-      
+
       if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
         changes.push({
           field: key,
@@ -160,7 +162,7 @@ export const subscribeToConfiguration = (
   onError: (error: Error) => void
 ) => {
   const configRef = doc(db, CONFIGURATION_COLLECTION, DEFAULT_CONFIG_ID);
-  
+
   return onSnapshot(
     configRef,
     (doc) => {
@@ -185,7 +187,7 @@ export const subscribeToConfiguration = (
     },
     (error) => {
       console.error('Error subscribing to configuration:', error);
-      
+
       // Provide fallback configuration
       const fallbackConfig: AdminConfiguration = {
         id: DEFAULT_CONFIG_ID,
@@ -193,9 +195,9 @@ export const subscribeToConfiguration = (
         lastUpdated: new Date().toISOString(),
         updatedBy: 'fallback'
       };
-      
+
       callback(fallbackConfig);
-      
+
       // Still call onError but don't block the callback
       setTimeout(() => {
         onError(new Error('Failed to subscribe to configuration changes - using offline defaults'));
@@ -243,7 +245,7 @@ export const getConfigurationLogs = async (limitCount: number = 50): Promise<Con
  */
 export const checkAdminPrivileges = async (): Promise<boolean> => {
   const currentUser = auth.currentUser;
-  
+
   if (!currentUser) {
     return false;
   }

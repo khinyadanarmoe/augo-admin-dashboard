@@ -1,5 +1,6 @@
 import React from "react";
 import { useRouter } from "next/router";
+import { ReportStatus } from "@/types/constants";
 
 interface Report {
   id: string;
@@ -7,7 +8,7 @@ interface Report {
   postTitle: string;
   reporter: string;
   reason: string;
-  status: "pending" | "reviewed" | "resolved";
+  status: ReportStatus;
   reportedAt: string;
 }
 
@@ -33,7 +34,7 @@ export default function RecentReportsList({ reports }: RecentReportsListProps) {
       postTitle: "Another Sample Post",
       reporter: "User123",
       reason: "Promotional content",
-      status: "reviewed",
+      status: "resolved",
       reportedAt: "2 hours ago",
     },
     {

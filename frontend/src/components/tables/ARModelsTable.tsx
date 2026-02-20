@@ -34,21 +34,17 @@ function ARModelRow({
 }: ARModelRowProps) {
   const { url: previewUrl } = useStorageUrl(model.previewPath);
 
-  // Get rarity color based on rarity type
+  // Get rarity text color based on rarity type (no background)
   const getRarityColor = (rarity: string) => {
     const rarityColors: Record<string, string> = {
-      "Ultra Rare":
-        "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300",
-      Rare: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-      Uncommon:
-        "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-      Common: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300",
-      "Very Common":
-        "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-      Unlimited:
-        "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+      "Ultra Rare": "text-cyan-600 dark:text-cyan-400",
+      Rare: "text-blue-600 dark:text-blue-400",
+      Uncommon: "text-green-600 dark:text-green-400",
+      Common: "text-pink-600 dark:text-pink-400",
+      "Very Common": "text-red-600 dark:text-red-400",
+      Unlimited: "text-gray-600 dark:text-gray-400",
     };
-    return rarityColors[rarity] || "bg-gray-100 text-gray-800";
+    return rarityColors[rarity] || "text-gray-600 dark:text-gray-400";
   };
 
   return (
@@ -81,25 +77,24 @@ function ARModelRow({
         </div>
       </td>
       <td className="px-6 py-4">
-        <div className="text-sm font-medium text-gray-900 dark:text-white">
+        <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">
           {model.name}
         </div>
-        {model.rarity ? (
-          <span
-            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${getRarityColor(model.rarity)}`}
-          >
-            {model.rarity}
+        <div className="flex items-center gap-2">
+          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-md bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+            {model.category}
           </span>
-        ) : (
-          <span className="text-xs text-gray-400 mt-1 inline-block">
-            No rarity set
-          </span>
-        )}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
-          {model.category}
-        </span>
+          {model.rarity && <span className="text-xs">|</span>}
+          {model.rarity ? (
+            <span
+              className={`text-xs font-medium ${getRarityColor(model.rarity)}`}
+            >
+              {model.rarity}
+            </span>
+          ) : (
+            <span className="text-xs text-gray-400">No rarity</span>
+          )}
+        </div>
       </td>
       <td className="px-6 py-4">
         <div className="text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
@@ -123,15 +118,67 @@ function ARModelRow({
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <span
-          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-            model.isActive
-              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-              : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
-          }`}
-        >
-          {model.isActive ? "Active" : "Inactive"}
-        </span>
+        {(() => {
+          const now = new Date();
+          const startTime = model.startTime ? new Date(model.startTime) : null;
+          const endTime = model.endTime ? new Date(model.endTime) : null;
+
+          // Determine status based on time and isActive flag
+          let status = "";
+          let icon = "";
+          let timeDisplay = "";
+
+          if (!model.isActive) {
+            // Model is manually set to inactive
+            if (endTime && now > endTime) {
+              icon = "⚫";
+              status = "Ended";
+            } else if (startTime && now < startTime) {
+              icon = "🟡";
+              status = "Starts";
+              timeDisplay = startTime.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+            } else {
+              icon = "⚫";
+              status = "Inactive";
+            }
+          } else {
+            // Model is active
+            if (endTime && now > endTime) {
+              icon = "⚫";
+              status = "Ended";
+            } else if (startTime && now < startTime) {
+              icon = "🟡";
+              status = "Starts";
+              timeDisplay = startTime.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+            } else if (startTime && endTime) {
+              icon = "🟢";
+              status = "Live";
+              timeDisplay = `(${startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – ${endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`;
+            } else {
+              icon = "🟢";
+              status = "Live";
+            }
+          }
+
+          return (
+            <div>
+              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                {icon} {status}
+              </div>
+              {timeDisplay && (
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {timeDisplay}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm">
         <div className="flex items-center space-x-2">
@@ -431,10 +478,6 @@ export default function ARModelsTable({
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
               />
               <RegularTableHeader
-                label="Category"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-              />
-              <RegularTableHeader
                 label="Description"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
               />
@@ -463,7 +506,7 @@ export default function ARModelsTable({
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center">
+                <td colSpan={7} className="px-6 py-12 text-center">
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                   </div>
@@ -472,7 +515,7 @@ export default function ARModelsTable({
             ) : paginatedModels.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={7}
                   className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
                 >
                   No AR models found

@@ -38,6 +38,8 @@ interface ARModelFormData {
   coin_value: number;
   point: number;
   isActive: boolean;
+  startTime: string;
+  endTime: string;
   modelFile: File | null;
   previewFile: File | null;
 }
@@ -67,6 +69,8 @@ function AddARModel() {
     coin_value: 0.2,
     point: 10,
     isActive: true,
+    startTime: "",
+    endTime: "",
     modelFile: null,
     previewFile: null,
   });
@@ -98,6 +102,8 @@ function AddARModel() {
         coin_value: parseFloat(query.coin_value as string) || 0.2,
         point: parseInt(query.point as string) || 10,
         isActive: query.isActive === "true",
+        startTime: (query.startTime as string) || "",
+        endTime: (query.endTime as string) || "",
         modelFile: null,
         previewFile: null,
       });
@@ -283,6 +289,8 @@ function AddARModel() {
         coin_value: formData.coin_value,
         point: formData.point,
         isActive: formData.isActive,
+        startTime: formData.startTime || undefined,
+        endTime: formData.endTime || undefined,
       };
 
       if (isEditMode && query.id) {
@@ -540,6 +548,53 @@ function AddARModel() {
                         USDZ, GLB, or GLTF format
                       </p>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Availability Card */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                <h2 className="text-xl font-semibold mb-4">
+                  Time Availability
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  Set when this AR model should be available for users to catch.
+                  Leave empty for always available.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Start Time */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Start Time (Optional)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="startTime"
+                      value={formData.startTime}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      When the AR model becomes available
+                    </p>
+                  </div>
+
+                  {/* End Time */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      End Time (Optional)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="endTime"
+                      value={formData.endTime}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      When the AR model stops being available
+                    </p>
                   </div>
                 </div>
               </div>

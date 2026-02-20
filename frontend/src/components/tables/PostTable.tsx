@@ -418,14 +418,30 @@ export default function PostTable({
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="">All Categories</option>
-              <option value={POST_CATEGORIES.CAMPUS_LIFE}>{POST_CATEGORIES.CAMPUS_LIFE}</option>
-              <option value={POST_CATEGORIES.CASUAL}>{POST_CATEGORIES.CASUAL}</option>
-              <option value={POST_CATEGORIES.LOST_AND_FOUND}>{POST_CATEGORIES.LOST_AND_FOUND}</option>
-              <option value={POST_CATEGORIES.COMPLAINTS}>{POST_CATEGORIES.COMPLAINTS}</option>
-              <option value={POST_CATEGORIES.SAFETY}>{POST_CATEGORIES.SAFETY}</option>
-              <option value={POST_CATEGORIES.ACADEMIC}>{POST_CATEGORIES.ACADEMIC}</option>
-              <option value={POST_CATEGORIES.EVENT}>{POST_CATEGORIES.EVENT}</option>
-              <option value={POST_CATEGORIES.OTHER}>{POST_CATEGORIES.OTHER}</option>
+              <option value={POST_CATEGORIES.CAMPUS_LIFE}>
+                {POST_CATEGORIES.CAMPUS_LIFE}
+              </option>
+              <option value={POST_CATEGORIES.CASUAL}>
+                {POST_CATEGORIES.CASUAL}
+              </option>
+              <option value={POST_CATEGORIES.LOST_AND_FOUND}>
+                {POST_CATEGORIES.LOST_AND_FOUND}
+              </option>
+              <option value={POST_CATEGORIES.COMPLAINTS}>
+                {POST_CATEGORIES.COMPLAINTS}
+              </option>
+              <option value={POST_CATEGORIES.SAFETY}>
+                {POST_CATEGORIES.SAFETY}
+              </option>
+              <option value={POST_CATEGORIES.ACADEMIC}>
+                {POST_CATEGORIES.ACADEMIC}
+              </option>
+              <option value={POST_CATEGORIES.EVENT}>
+                {POST_CATEGORIES.EVENT}
+              </option>
+              <option value={POST_CATEGORIES.OTHER}>
+                {POST_CATEGORIES.OTHER}
+              </option>
             </select>
 
             <select

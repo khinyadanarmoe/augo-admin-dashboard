@@ -32,6 +32,8 @@ export interface ARSpawnData {
   coin_value: number;
   point: number;
   isActive: boolean;
+  startTime?: string; // ISO 8601 datetime string for when AR model becomes available
+  endTime?: string;   // ISO 8601 datetime string for when AR model stops being available
   createdAt?: any;
   updatedAt?: any;
 }
