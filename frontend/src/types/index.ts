@@ -11,6 +11,8 @@ export interface User {
   warningCount: number;
   joinedAt: string;
   avatar?: string;
+  bannedAt?: string;
+  banExpiresAt?: string;
 }
 
 export interface UserProfile extends User {
@@ -58,7 +60,7 @@ export interface Report {
   };
   postId: string;
   postContent: string;
-  category: 'offensive' | 'spam' | 'harassment' | 'misinformation';
+  category: import('./constants').ReportCategory;
   reportCount: number;
   status: import('./constants').ReportStatus;
   description: string;
@@ -151,6 +153,7 @@ export interface AdminConfiguration {
   maxActiveAnnouncements: number;
   urgentAnnouncementThreshold: number; // hours before startDate to show in notification
   banThreshold: number; // warning count threshold for automatic ban
+  banDurationDays: number; // duration in days for user ban (default: 30)
   lastUpdated: string;
   updatedBy: string;
 }

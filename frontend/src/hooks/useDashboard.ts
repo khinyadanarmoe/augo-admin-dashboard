@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, doc, query, where, orderBy, limit, getDocs, getDoc, getCountFromServer, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { POST_CATEGORIES } from '@/types/constants';
+import { POST_CATEGORIES, CATEGORY_LABELS } from '@/types/constants';
 import { subscribeToPendingAnnouncements } from '@/lib/firestore/announcements';
 import { subscribeToRecentReports } from '@/lib/firestore/reports';
 
@@ -159,7 +159,7 @@ export function useDashboard() {
         });
 
         console.log('Transformed pending announcements for dashboard:', pendingAnnouncements);
-        
+
         setData(prevData => {
           const newData = {
             metrics: prevData?.metrics || { activeUsers: 0, totalPosts: 0, pendingReports: 0, pendingAnnouncements: 0 },
@@ -185,7 +185,7 @@ export function useDashboard() {
         console.log('Received recent reports:', reports);
         // Transform to dashboard format
         const recentReports = reports.map(report => {
-          const reportDate = report.reportDate?.toDate ? report.reportDate.toDate() : new Date(report.reportDate);
+          const reportDate = (report.reportDate as any)?.toDate ? (report.reportDate as any).toDate() : new Date(report.reportDate);
           const now = new Date();
           const diffMs = now.getTime() - reportDate.getTime();
           const diffMins = Math.floor(diffMs / 60000);
@@ -203,7 +203,7 @@ export function useDashboard() {
 
           return {
             id: report.id,
-            type: report.category || 'Unknown',
+            type: CATEGORY_LABELS[report.category as keyof typeof CATEGORY_LABELS] || report.category || 'Unknown',
             postTitle: report.postContent?.substring(0, 50) || 'No content',
             reporter: report.reporter?.name || 'Anonymous',
             reason: report.description || 'No reason provided',

@@ -73,7 +73,11 @@ export default function UserTable({
               u.warningCount >= banThreshold && u.status !== USER_STATUS.BANNED,
           )
           .map(async (u) => {
-            await updateUserStatus(u.id, USER_STATUS.BANNED);
+            await updateUserStatus(
+              u.id,
+              USER_STATUS.BANNED,
+              config?.banDurationDays || 30,
+            );
             u.status = USER_STATUS.BANNED as UserStatus;
           });
         await Promise.all(autoBanPromises);
@@ -200,7 +204,11 @@ export default function UserTable({
         warnedUser.warningCount >= banThreshold &&
         warnedUser.status !== USER_STATUS.BANNED
       ) {
-        await updateUserStatus(userId, USER_STATUS.BANNED);
+        await updateUserStatus(
+          userId,
+          USER_STATUS.BANNED,
+          config?.banDurationDays || 30,
+        );
         warnedUser.status = USER_STATUS.BANNED as UserStatus;
       } else if (warnedUser && warnedUser.status !== USER_STATUS.BANNED) {
         await updateUserStatus(userId, USER_STATUS.WARNING);
@@ -243,7 +251,7 @@ export default function UserTable({
         currentStatus === USER_STATUS.BANNED
           ? USER_STATUS.ACTIVE
           : USER_STATUS.BANNED;
-      await updateUserStatus(userId, newStatus);
+      await updateUserStatus(userId, newStatus, config?.banDurationDays || 30);
 
       setLoading(true);
       const updatedUsers = await fetchUsers();

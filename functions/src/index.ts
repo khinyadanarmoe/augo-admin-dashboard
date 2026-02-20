@@ -16,6 +16,10 @@ import {
   activateScheduledAnnouncements,
   expireEndedAnnouncements,
 } from "./announcements";
+import {
+  handleNewReport,
+  updateReportMetrics,
+} from "./reports";
 
 // Export all functions
 export { sendUserNotification };
@@ -25,3 +29,6 @@ export { createAnnouncer, updateAnnouncer, deleteAnnouncer, setAnnouncerClaim };
 
 // Export announcement scheduled functions
 export { activateScheduledAnnouncements, expireEndedAnnouncements };
+
+// Export report management functions
+export { handleNewReport, updateReportMetrics };

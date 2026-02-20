@@ -17,13 +17,71 @@ export const POST_STATUS = {
 
 export type PostStatus = typeof POST_STATUS[keyof typeof POST_STATUS];
 
-// Report categories
+// Report categories with severity levels
 export const REPORT_CATEGORIES = {
-  OFFENSIVE: 'offensive',
-  SPAM: 'spam',
+  // High severity (🔴 Red) - Auto-removes post
+  THREATS_VIOLENCE: 'threats_violence',
+  NUDITY: 'nudity',
+  HATE_SPEECH: 'hate_speech',
+  SCAM: 'scam',
+
+  // Medium severity (🟡 Yellow)
   HARASSMENT: 'harassment',
-  MISINFORMATION: 'misinformation'
+  IMPERSONATION: 'impersonation',
+  MISINFORMATION: 'misinformation',
+
+  // Low severity (🟢 Green)
+  SPAM: 'spam',
+
+  // Other (🟤 Brown)
+  OTHER: 'other'
 } as const;
+
+export type ReportCategory = typeof REPORT_CATEGORIES[keyof typeof REPORT_CATEGORIES];
+
+// Report severity levels
+export const REPORT_SEVERITY = {
+  HIGH: 'high',
+  MEDIUM: 'medium',
+  LOW: 'low',
+  OTHER: 'other'
+} as const;
+
+export type ReportSeverity = typeof REPORT_SEVERITY[keyof typeof REPORT_SEVERITY];
+
+// Map categories to severity
+export const CATEGORY_SEVERITY_MAP: Record<ReportCategory, ReportSeverity> = {
+  [REPORT_CATEGORIES.THREATS_VIOLENCE]: REPORT_SEVERITY.HIGH,
+  [REPORT_CATEGORIES.NUDITY]: REPORT_SEVERITY.HIGH,
+  [REPORT_CATEGORIES.HATE_SPEECH]: REPORT_SEVERITY.HIGH,
+  [REPORT_CATEGORIES.SCAM]: REPORT_SEVERITY.HIGH,
+  [REPORT_CATEGORIES.HARASSMENT]: REPORT_SEVERITY.MEDIUM,
+  [REPORT_CATEGORIES.IMPERSONATION]: REPORT_SEVERITY.MEDIUM,
+  [REPORT_CATEGORIES.MISINFORMATION]: REPORT_SEVERITY.MEDIUM,
+  [REPORT_CATEGORIES.SPAM]: REPORT_SEVERITY.LOW,
+  [REPORT_CATEGORIES.OTHER]: REPORT_SEVERITY.OTHER
+};
+
+// Severity display labels
+export const SEVERITY_LABELS: Record<ReportSeverity, string> = {
+  [REPORT_SEVERITY.HIGH]: '🔴 High',
+  [REPORT_SEVERITY.MEDIUM]: '🟡 Medium',
+  [REPORT_SEVERITY.LOW]: '🟢 Low',
+  [REPORT_SEVERITY.OTHER]: '🟤 Other'
+};
+
+// Category display labels
+export const CATEGORY_LABELS: Record<ReportCategory, string> = {
+  [REPORT_CATEGORIES.THREATS_VIOLENCE]: 'Threats / Violence',
+  [REPORT_CATEGORIES.NUDITY]: 'Nudity',
+  [REPORT_CATEGORIES.HATE_SPEECH]: 'Hate Speech',
+  [REPORT_CATEGORIES.SCAM]: 'Scam',
+  [REPORT_CATEGORIES.HARASSMENT]: 'Harassment',
+  [REPORT_CATEGORIES.IMPERSONATION]: 'Impersonation',
+  [REPORT_CATEGORIES.MISINFORMATION]: 'Misinformation',
+  [REPORT_CATEGORIES.SPAM]: 'Spam',
+  [REPORT_CATEGORIES.OTHER]: 'Other'
+};
 
 // Report status
 export const REPORT_STATUS = {

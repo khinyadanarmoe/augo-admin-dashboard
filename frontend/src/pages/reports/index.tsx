@@ -13,30 +13,30 @@ function Reports() {
   // Handle query parameters from notification bell
   useEffect(() => {
     const { filterBy, postId, highlight, autoScroll, id } = router.query;
-    
+
     // Handle both old format (filterBy + postId) and new format (id)
-    if (id && typeof id === 'string') {
+    if (id && typeof id === "string") {
       setSearchTerm(id);
       setHighlightPostId(id);
-    } else if (filterBy === 'postId' && postId && typeof postId === 'string') {
+    } else if (filterBy === "postId" && postId && typeof postId === "string") {
       // Set search term to the postId
       setSearchTerm(postId);
     }
-    
-    if (highlight && typeof highlight === 'string') {
+
+    if (highlight && typeof highlight === "string") {
       // Highlight the specific post
       setHighlightPostId(highlight);
     }
-    
-    if (autoScroll === 'true' && (highlight || id)) {
+
+    if (autoScroll === "true" && (highlight || id)) {
       // Scroll to the highlighted post after a brief delay
       const scrollId = highlight || id;
       setTimeout(() => {
         const element = document.getElementById(`report-${scrollId}`);
         if (element) {
-          element.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
           });
         }
       }, 1000); // Give time for table to render
@@ -53,12 +53,16 @@ function Reports() {
           <header className="mb-8 flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold">Report Management</h1>
-              <p className="mt-2 text-zinc-600 dark:text-zinc-400">Manage user reports by category and status. Track offensive posts, spam, harassment cases, and misinformation.</p>
+              <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+                Manage user reports by severity. High severity reports (threats,
+                nudity, hate speech, scam) auto-remove posts. Track harassment,
+                impersonation, misinformation, spam, and other violations.
+              </p>
             </div>
             <NotificationBell className="group" />
           </header>
 
-          <ReportTable 
+          <ReportTable
             highlightPostId={highlightPostId}
             initialSearchTerm={searchTerm}
           />

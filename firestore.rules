@@ -32,7 +32,9 @@ service cloud.firestore {
     
     match /posts/{postId} {
       allow read: if isAUEmail() || isAnnouncer() || isAdmin();
-      allow create: if isAUEmail() && request.resource.data.userId == request.auth.uid;
+      allow create: if isAUEmail() 
+        && request.resource.data.userId == request.auth.uid 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status != "banned";
       allow update: if isAUEmail() && resource.data.userId == request.auth.uid || isAdmin();
       allow delete: if isAUEmail() && resource.data.userId == request.auth.uid || isAdmin();
     }

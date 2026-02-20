@@ -3,12 +3,12 @@ import { db } from "@/lib/firebase";
 import { User } from "@/types/export";
 
 export async function fetchUsers(): Promise<User[]> {
-    const snapshot = await getDocs(collection(db, "users"));
+  const snapshot = await getDocs(collection(db, "users"));
 
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as Omit<User, 'id'>)
-    }));
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...(doc.data() as Omit<User, 'id'>)
+  }));
 }
 
 /**
@@ -18,7 +18,7 @@ export async function fetchUserById(userId: string): Promise<User | null> {
   try {
     const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
-    
+
     if (userSnap.exists()) {
       return {
         id: userSnap.id,
@@ -53,13 +53,29 @@ export const incrementUserWarningCount = async (userId: string): Promise<void> =
 /**
  * Update user status
  */
-export const updateUserStatus = async (userId: string, status: string): Promise<void> => {
+export const updateUserStatus = async (userId: string, status: string, banDurationDays: number = 30): Promise<void> => {
   try {
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
+    const updateData: any = {
       status: status,
       lastStatusUpdate: new Date().toISOString()
-    });
+    };
+
+    // If banning user, set ban timestamps with configurable duration
+    if (status === 'banned') {
+      const bannedAt = new Date();
+      const banExpiresAt = new Date();
+      banExpiresAt.setDate(banExpiresAt.getDate() + banDurationDays);
+
+      updateData.bannedAt = bannedAt.toISOString();
+      updateData.banExpiresAt = banExpiresAt.toISOString();
+    } else {
+      // If unbanning, clear ban timestamps
+      updateData.bannedAt = null;
+      updateData.banExpiresAt = null;
+    }
+
+    await updateDoc(userRef, updateData);
     console.log('User status updated:', userId, status);
   } catch (error) {
     console.error('Error updating user status:', error);

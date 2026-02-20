@@ -418,10 +418,14 @@ export default function PostTable({
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="">All Categories</option>
-              <option value="Photography">Photography</option>
-              <option value="Education">Education</option>
-              <option value="Sports">Sports</option>
-              <option value="Technology">Technology</option>
+              <option value={POST_CATEGORIES.CAMPUS_LIFE}>{POST_CATEGORIES.CAMPUS_LIFE}</option>
+              <option value={POST_CATEGORIES.CASUAL}>{POST_CATEGORIES.CASUAL}</option>
+              <option value={POST_CATEGORIES.LOST_AND_FOUND}>{POST_CATEGORIES.LOST_AND_FOUND}</option>
+              <option value={POST_CATEGORIES.COMPLAINTS}>{POST_CATEGORIES.COMPLAINTS}</option>
+              <option value={POST_CATEGORIES.SAFETY}>{POST_CATEGORIES.SAFETY}</option>
+              <option value={POST_CATEGORIES.ACADEMIC}>{POST_CATEGORIES.ACADEMIC}</option>
+              <option value={POST_CATEGORIES.EVENT}>{POST_CATEGORIES.EVENT}</option>
+              <option value={POST_CATEGORIES.OTHER}>{POST_CATEGORIES.OTHER}</option>
             </select>
 
             <select
@@ -450,8 +454,8 @@ export default function PostTable({
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
-              <RegularTableHeader label="User" />
               <RegularTableHeader label="Post" />
+              <RegularTableHeader label="User" />
               <RegularTableHeader label="Category" />
               <SortableTableHeader
                 field="likes"
@@ -487,6 +491,9 @@ export default function PostTable({
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {new Date(post.postDate).toLocaleDateString()}
                 </td>
+                <td className="px-6 py-4 text-sm text-gray-900 dark:text-white max-w-xs truncate">
+                  {post.content}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
@@ -500,9 +507,6 @@ export default function PostTable({
                       </div>
                     </div>
                   </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-900 dark:text-white max-w-xs truncate">
-                  {post.content}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded-full">
@@ -531,18 +535,11 @@ export default function PostTable({
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(post.status)}`}
-                    >
-                      {post.status}
-                    </span>
-                    {post.isWarned && (
-                      <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300 rounded-full">
-                        ⚠️ Warned
-                      </span>
-                    )}
-                  </div>
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(post.status)}`}
+                  >
+                    {post.status}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                   <button

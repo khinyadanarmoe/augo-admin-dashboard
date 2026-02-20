@@ -65,14 +65,22 @@ export default function PendingAnnouncementApprovals({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('PendingAnnouncementApprovals received announcements:', announcements);
-    console.log('announcements type:', typeof announcements, 'isArray:', Array.isArray(announcements));
+    console.log(
+      "PendingAnnouncementApprovals received announcements:",
+      announcements,
+    );
+    console.log(
+      "announcements type:",
+      typeof announcements,
+      "isArray:",
+      Array.isArray(announcements),
+    );
     if (announcements !== undefined) {
-      console.log('Setting displayAnnouncements to:', announcements);
+      console.log("Setting displayAnnouncements to:", announcements);
       setDisplayAnnouncements(announcements);
       setLoading(false);
     } else {
-      console.log('announcements is undefined, using sample data');
+      console.log("announcements is undefined, using sample data");
       // If no announcements prop provided, fall back to sample data
       setDisplayAnnouncements(sampleAnnouncements);
       setLoading(false);

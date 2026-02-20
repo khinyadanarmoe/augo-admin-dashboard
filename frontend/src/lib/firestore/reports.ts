@@ -64,11 +64,11 @@ export const subscribeToRecentReports = (
 ): Unsubscribe => {
   const reportsCollection = collection(db, 'reports');
   const q = query(
-    reportsCollection, 
+    reportsCollection,
     where('status', '==', 'pending'),
     limit(50) // Get more to sort in memory
   );
-  
+
   return onSnapshot(
     q,
     (snapshot: QuerySnapshot<DocumentData>) => {
@@ -79,8 +79,8 @@ export const subscribeToRecentReports = (
         } as Report))
         .sort((a, b) => {
           // Sort by reportDate descending
-          const dateA = a.reportDate?.toDate ? a.reportDate.toDate().getTime() : 0;
-          const dateB = b.reportDate?.toDate ? b.reportDate.toDate().getTime() : 0;
+          const dateA = (a.reportDate as any)?.toDate ? (a.reportDate as any).toDate().getTime() : 0;
+          const dateB = (b.reportDate as any)?.toDate ? (b.reportDate as any).toDate().getTime() : 0;
           return dateB - dateA;
         })
         .slice(0, 5); // Take top 5 after sorting

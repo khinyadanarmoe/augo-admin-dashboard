@@ -1,6 +1,21 @@
 /**
  * Business Rules Service
  * This service enforces all the configuration-based business rules across the application
+ * 
+ * Report Severity Rules:
+ * - HIGH (🔴): Threats/Violence, Nudity, Hate Speech, Scam
+ *   → Auto-removes post immediately via Cloud Function
+ *   → Sends notification to reported user
+ *   → Marks report as resolved
+ * 
+ * - MEDIUM (🟡): Harassment, Impersonation, Misinformation
+ *   → Requires manual review and admin action
+ * 
+ * - LOW (🟢): Spam
+ *   → Requires manual review
+ * 
+ * - OTHER (🟤): Other violations
+ *   → Requires manual review
  */
 
 import { AdminConfiguration } from '@/types';
@@ -25,7 +40,7 @@ export class BusinessRulesService {
   private static instance: BusinessRulesService;
   private config: AdminConfiguration | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): BusinessRulesService {
     if (!BusinessRulesService.instance) {
@@ -67,8 +82,8 @@ export class BusinessRulesService {
    * Validate if a student can create a new post
    */
   async validatePostCreation(
-    userId: string, 
-    userDailyPostCount: number, 
+    userId: string,
+    userDailyPostCount: number,
     isAnnouncement: boolean = false
   ): Promise<PostValidationResult> {
     const config = await this.ensureConfigLoaded();
@@ -95,7 +110,7 @@ export class BusinessRulesService {
    * Calculate post expiration date
    */
   async calculatePostExpiration(
-    createdDate: Date = new Date(), 
+    createdDate: Date = new Date(),
     isAnnouncement: boolean = false
   ): Promise<Date | null> {
     // Announcements don't expire based on configuration
@@ -106,7 +121,7 @@ export class BusinessRulesService {
     const config = await this.ensureConfigLoaded();
     const expirationDate = new Date(createdDate);
     expirationDate.setHours(expirationDate.getHours() + config.postVisibilityDuration);
-    
+
     return expirationDate;
   }
 
@@ -114,7 +129,7 @@ export class BusinessRulesService {
    * Check if a post has expired
    */
   async isPostExpired(
-    createdDate: Date, 
+    createdDate: Date,
     isAnnouncement: boolean = false
   ): Promise<boolean> {
     if (isAnnouncement) return false;

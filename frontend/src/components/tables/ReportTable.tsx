@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Report, REPORT_CATEGORIES, REPORT_STATUS } from "@/types/export";
+import {
+  Report,
+  REPORT_CATEGORIES,
+  REPORT_STATUS,
+  CATEGORY_SEVERITY_MAP,
+  CATEGORY_LABELS,
+  REPORT_SEVERITY,
+} from "@/types/export";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useAdminConfiguration } from "@/hooks/useAdminConfiguration";
 import { useReports } from "@/hooks/useReports";
@@ -313,18 +320,27 @@ export default function ReportTable({
   };
 
   const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "offensive":
+    const severity =
+      CATEGORY_SEVERITY_MAP[category as keyof typeof CATEGORY_SEVERITY_MAP];
+
+    switch (severity) {
+      case REPORT_SEVERITY.HIGH:
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
-      case "spam":
+      case REPORT_SEVERITY.MEDIUM:
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
-      case "harassment":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300";
-      case "misinformation":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
+      case REPORT_SEVERITY.LOW:
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+      case REPORT_SEVERITY.OTHER:
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
     }
+  };
+
+  const getCategoryLabel = (category: string) => {
+    return (
+      CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS] || category
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -384,10 +400,41 @@ export default function ReportTable({
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="">All Categories</option>
-              <option value="offensive">Offensive Posts</option>
-              <option value="spam">Spam Posts</option>
-              <option value="harassment">Harassment Cases</option>
-              <option value="misinformation">Misinformation</option>
+              <optgroup label="🔴 High Severity">
+                <option value={REPORT_CATEGORIES.THREATS_VIOLENCE}>
+                  {CATEGORY_LABELS[REPORT_CATEGORIES.THREATS_VIOLENCE]}
+                </option>
+                <option value={REPORT_CATEGORIES.NUDITY}>
+                  {CATEGORY_LABELS[REPORT_CATEGORIES.NUDITY]}
+                </option>
+                <option value={REPORT_CATEGORIES.HATE_SPEECH}>
+                  {CATEGORY_LABELS[REPORT_CATEGORIES.HATE_SPEECH]}
+                </option>
+                <option value={REPORT_CATEGORIES.SCAM}>
+                  {CATEGORY_LABELS[REPORT_CATEGORIES.SCAM]}
+                </option>
+              </optgroup>
+              <optgroup label="🟡 Medium Severity">
+                <option value={REPORT_CATEGORIES.HARASSMENT}>
+                  {CATEGORY_LABELS[REPORT_CATEGORIES.HARASSMENT]}
+                </option>
+                <option value={REPORT_CATEGORIES.IMPERSONATION}>
+                  {CATEGORY_LABELS[REPORT_CATEGORIES.IMPERSONATION]}
+                </option>
+                <option value={REPORT_CATEGORIES.MISINFORMATION}>
+                  {CATEGORY_LABELS[REPORT_CATEGORIES.MISINFORMATION]}
+                </option>
+              </optgroup>
+              <optgroup label="🟢 Low Severity">
+                <option value={REPORT_CATEGORIES.SPAM}>
+                  {CATEGORY_LABELS[REPORT_CATEGORIES.SPAM]}
+                </option>
+              </optgroup>
+              <optgroup label="🟤 Other">
+                <option value={REPORT_CATEGORIES.OTHER}>
+                  {CATEGORY_LABELS[REPORT_CATEGORIES.OTHER]}
+                </option>
+              </optgroup>
             </select>
 
             <select
@@ -519,9 +566,9 @@ export default function ReportTable({
                   <td className="px-3 py-4">
                     <span
                       className={`px-2 py-1 text-xs font-medium rounded-full truncate inline-block max-w-full ${getCategoryColor(report.category)}`}
-                      title={report.category}
+                      title={getCategoryLabel(report.category)}
                     >
-                      {report.category}
+                      {getCategoryLabel(report.category)}
                     </span>
                   </td>
                   <td className="px-3 py-4 text-sm text-gray-900 dark:text-white">
