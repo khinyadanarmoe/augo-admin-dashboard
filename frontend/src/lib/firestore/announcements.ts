@@ -58,7 +58,8 @@ export const fetchAnnouncements = async (): Promise<Announcement[]> => {
         createdByEmail: data.createdByEmail,
         submittedAt: data.submittedAt?.toDate ? data.submittedAt.toDate().toISOString() : data.submittedAt,
         rejectedAt: data.rejectedAt?.toDate ? data.rejectedAt.toDate().toISOString() : data.rejectedAt,
-        views: data.views || 0,
+        likeCount: data.likeCount || 0,
+        dislikeCount: data.dislikeCount || 0,
         photoPaths: data.photoPaths || []
       } as Announcement;
     });
@@ -105,7 +106,8 @@ export const subscribeToAnnouncements = (
           createdByEmail: data.createdByEmail,
           submittedAt: data.submittedAt?.toDate ? data.submittedAt.toDate().toISOString() : data.submittedAt,
           rejectedAt: data.rejectedAt?.toDate ? data.rejectedAt.toDate().toISOString() : data.rejectedAt,
-          views: data.views || 0,
+          likeCount: data.likeCount || 0,
+          dislikeCount: data.dislikeCount || 0,
           photoPaths: data.photoPaths || []
         } as Announcement;
       });
@@ -156,7 +158,8 @@ export const subscribeToPendingAnnouncements = (
           createdByEmail: data.createdByEmail,
           submittedAt: data.submittedAt?.toDate ? data.submittedAt.toDate().toISOString() : data.submittedAt,
           rejectedAt: data.rejectedAt?.toDate ? data.rejectedAt.toDate().toISOString() : data.rejectedAt,
-          views: data.views || 0,
+          likeCount: data.likeCount || 0,
+          dislikeCount: data.dislikeCount || 0,
           photoPaths: data.photoPaths || []
         } as Announcement;
       });
@@ -241,21 +244,41 @@ export const deleteAnnouncement = async (id: string): Promise<void> => {
 };
 
 /**
- * Increment view count for an announcement
+ * Increment like count for an announcement
  */
-export const incrementAnnouncementViews = async (id: string): Promise<void> => {
+export const incrementAnnouncementLikes = async (id: string): Promise<void> => {
   try {
     const announcementDoc = doc(db, ANNOUNCEMENTS_COLLECTION, id);
     const snapshot = await getDoc(announcementDoc);
 
     if (snapshot.exists()) {
-      const currentViews = snapshot.data().views || 0;
+      const currentLikes = snapshot.data().likeCount || 0;
       await updateDoc(announcementDoc, {
-        views: currentViews + 1
+        likeCount: currentLikes + 1
       });
     }
   } catch (error) {
-    console.error('Error incrementing announcement views:', error);
+    console.error('Error incrementing announcement likes:', error);
+    throw error;
+  }
+};
+
+/**
+ * Increment dislike count for an announcement
+ */
+export const incrementAnnouncementDislikes = async (id: string): Promise<void> => {
+  try {
+    const announcementDoc = doc(db, ANNOUNCEMENTS_COLLECTION, id);
+    const snapshot = await getDoc(announcementDoc);
+
+    if (snapshot.exists()) {
+      const currentDislikes = snapshot.data().dislikeCount || 0;
+      await updateDoc(announcementDoc, {
+        dislikeCount: currentDislikes + 1
+      });
+    }
+  } catch (error) {
+    console.error('Error incrementing announcement dislikes:', error);
     throw error;
   }
 };

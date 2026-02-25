@@ -504,14 +504,25 @@ export default function AnnouncementDetailDrawer({
               </div>
             )}
 
-            {announcement.views !== undefined && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Views
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                  {announcement.views}
-                </p>
+            {(announcement.likeCount !== undefined ||
+              announcement.dislikeCount !== undefined) && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Likes
+                  </label>
+                  <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                    {announcement.likeCount || 0}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Dislikes
+                  </label>
+                  <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                    {announcement.dislikeCount || 0}
+                  </p>
+                </div>
               </div>
             )}
 

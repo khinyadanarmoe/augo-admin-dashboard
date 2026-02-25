@@ -24,10 +24,14 @@ export const getReports = async (): Promise<Report[]> => {
     const q = query(reportsCollection, orderBy('reportDate', 'desc'));
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Report));
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
+      } as Report;
+    });
   } catch (error) {
     console.error('Error fetching reports:', error);
     throw error;
@@ -44,10 +48,14 @@ export const subscribeToReports = (
   const q = query(reportsCollection, orderBy('reportDate', 'desc'));
 
   return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-    const reports: Report[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Report));
+    const reports: Report[] = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
+      } as Report;
+    });
     callback(reports);
   }, (error) => {
     console.error('Error in reports subscription:', error);
@@ -73,14 +81,18 @@ export const subscribeToRecentReports = (
     q,
     (snapshot: QuerySnapshot<DocumentData>) => {
       const reports: Report[] = snapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Report))
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
+          } as Report;
+        })
         .sort((a, b) => {
           // Sort by reportDate descending
-          const dateA = (a.reportDate as any)?.toDate ? (a.reportDate as any).toDate().getTime() : 0;
-          const dateB = (b.reportDate as any)?.toDate ? (b.reportDate as any).toDate().getTime() : 0;
+          const dateA = new Date(a.reportDate).getTime();
+          const dateB = new Date(b.reportDate).getTime();
           return dateB - dateA;
         })
         .slice(0, 5); // Take top 5 after sorting
@@ -108,10 +120,14 @@ export const getReportsByStatus = async (status: string): Promise<Report[]> => {
     );
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Report));
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
+      } as Report;
+    });
   } catch (error) {
     console.error('Error fetching reports by status:', error);
     throw error;
@@ -131,10 +147,14 @@ export const getReportsByCategory = async (category: string): Promise<Report[]> 
     );
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Report));
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
+      } as Report;
+    });
   } catch (error) {
     console.error('Error fetching reports by category:', error);
     throw error;
@@ -223,10 +243,14 @@ export const getUrgentReports = async (threshold: number = 5): Promise<Report[]>
     );
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Report));
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
+      } as Report;
+    });
   } catch (error) {
     console.error('Error fetching urgent reports:', error);
     throw error;

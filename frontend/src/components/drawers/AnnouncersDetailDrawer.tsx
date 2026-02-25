@@ -22,14 +22,13 @@ export default function AnnouncersDetailDrawer({
     Announcement[]
   >([]);
   const [activeAnnouncementsCount, setActiveAnnouncementsCount] = useState(0);
+  const [totalAnnouncementsCount, setTotalAnnouncementsCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   // Load profile picture from Firebase Storage (must be before conditional return)
   const { url: profileUrl } = useStorageUrl(announcer?.profilePicture || "");
 
-  if (!isOpen || !announcer) return null;
-
-  // Fetch announcer's announcements
+  // Fetch announcer's announcements (must be before conditional return)
   useEffect(() => {
     const loadAnnouncerAnnouncements = async () => {
       if (!announcer?.id) return;
@@ -42,6 +41,15 @@ export default function AnnouncersDetailDrawer({
         const announcerAnnouncements = allAnnouncements.filter(
           (announcement) => announcement.createdByUID === announcer.id,
         );
+
+        // Get total announcements count (active + scheduled + expired)
+        const totalCount = announcerAnnouncements.filter(
+          (announcement) =>
+            announcement.status === "active" ||
+            announcement.status === "scheduled" ||
+            announcement.status === "expired",
+        ).length;
+        setTotalAnnouncementsCount(totalCount);
 
         // Get active announcements count
         const activeCount = announcerAnnouncements.filter(
@@ -72,6 +80,8 @@ export default function AnnouncersDetailDrawer({
       loadAnnouncerAnnouncements();
     }
   }, [announcer, isOpen]);
+
+  if (!isOpen || !announcer) return null;
 
   const formatRelativeTime = (dateString: string | Date) => {
     const now = new Date();
@@ -242,7 +252,7 @@ export default function AnnouncersDetailDrawer({
                   Total Announcements:
                 </span>
                 <span className="text-gray-900 dark:text-white">
-                  {announcer.total_announcements}
+                  {totalAnnouncementsCount}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -262,7 +272,7 @@ export default function AnnouncersDetailDrawer({
           <div className="grid grid-cols-2 gap-3 mb-6">
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {announcer.total_announcements}
+                {totalAnnouncementsCount}
               </div>
               <div className="text-sm text-blue-600 dark:text-blue-400">
                 Total Announcements
@@ -338,11 +348,43 @@ export default function AnnouncersDetailDrawer({
                             )}
                           </span>
                           <div className="flex items-center space-x-3">
-                            <div className="flex items-center space-x-1">
-                              <span className="text-purple-600">👁️</span>
-                              <span className="text-sm text-gray-900 dark:text-white">
-                                {announcement.views || 0}
-                              </span>
+                            <div className="flex items-center space-x-2">
+                              <button className="flex items-center space-x-1 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
+                                  />
+                                </svg>
+                                <span className="text-xs">
+                                  {announcement.likeCount || 0}
+                                </span>
+                              </button>
+                              <button className="flex items-center space-x-1 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"
+                                  />
+                                </svg>
+                                <span className="text-xs">
+                                  {announcement.dislikeCount || 0}
+                                </span>
+                              </button>
                             </div>
                             {announcement.isUrgent && (
                               <span className="text-red-500 text-xs font-medium">

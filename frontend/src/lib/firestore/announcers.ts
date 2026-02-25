@@ -3,14 +3,33 @@ import { db, functions } from "@/lib/firebase";
 import { Announcer } from "@/types/export";
 import { ANNOUNCER_STATUS } from "@/types/constants";
 import { httpsCallable } from "firebase/functions";
+import { fetchAnnouncements } from "./announcements";
 
 export async function fetchAnnouncers(): Promise<Announcer[]> {
     const snapshot = await getDocs(collection(db, "announcers"));
 
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as Omit<Announcer, 'id'>)
-    }));
+    // Fetch all announcements to calculate total count for each announcer
+    const allAnnouncements = await fetchAnnouncements();
+
+    return snapshot.docs.map(doc => {
+        const data = doc.data() as Omit<Announcer, 'id'>;
+        const announcerId = doc.id;
+
+        // Calculate total announcements for this announcer (active + scheduled + expired)
+        const totalAnnouncementsCount = allAnnouncements.filter(
+            (announcement) =>
+                announcement.createdByUID === announcerId &&
+                (announcement.status === "active" ||
+                    announcement.status === "scheduled" ||
+                    announcement.status === "expired")
+        ).length;
+
+        return {
+            id: announcerId,
+            ...data,
+            total_announcements: totalAnnouncementsCount
+        };
+    });
 }
 
 /**
@@ -22,9 +41,24 @@ export async function fetchAnnouncerById(id: string): Promise<Announcer | null> 
         const snapshot = await getDoc(announcerDoc);
 
         if (snapshot.exists()) {
+            const data = snapshot.data() as Omit<Announcer, 'id'>;
+
+            // Fetch all announcements to calculate total count for this announcer
+            const allAnnouncements = await fetchAnnouncements();
+
+            // Calculate total announcements for this announcer (active + scheduled + expired)
+            const totalAnnouncementsCount = allAnnouncements.filter(
+                (announcement) =>
+                    announcement.createdByUID === id &&
+                    (announcement.status === "active" ||
+                        announcement.status === "scheduled" ||
+                        announcement.status === "expired")
+            ).length;
+
             return {
                 id: snapshot.id,
-                ...(snapshot.data() as Omit<Announcer, 'id'>)
+                ...data,
+                total_announcements: totalAnnouncementsCount
             } as Announcer;
         }
         return null;

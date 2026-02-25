@@ -11,6 +11,185 @@ import {
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import UserDetailDrawer from "./UserDetailDrawer";
+import { useStorageUrl } from "@/lib/storageUtils";
+
+// Component to display individual photo (needed for hook usage)
+function PostPhoto({
+  photoPath,
+  onClick,
+}: {
+  photoPath: string;
+  onClick?: () => void;
+}) {
+  const { url: photoUrl, loading } = useStorageUrl(photoPath);
+
+  if (loading) {
+    return (
+      <div className="w-full h-64 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse flex items-center justify-center">
+        <span className="text-sm text-gray-500">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!photoUrl) {
+    return null;
+  }
+
+  return (
+    <img
+      src={photoUrl}
+      alt="Post photo"
+      className="w-full h-64 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+      onClick={onClick}
+    />
+  );
+}
+
+// Simple Carousel Component
+function PhotoCarousel({
+  photoPaths,
+  onPhotoClick,
+}: {
+  photoPaths: string[];
+  onPhotoClick?: (index: number) => void;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const goToPrevious = () => {
+    setCurrentIndex((prevIndex) =>
+      prevIndex === 0 ? photoPaths.length - 1 : prevIndex - 1,
+    );
+  };
+
+  const goToNext = () => {
+    setCurrentIndex((prevIndex) =>
+      prevIndex === photoPaths.length - 1 ? 0 : prevIndex + 1,
+    );
+  };
+
+  return (
+    <div className="relative">
+      <PostPhoto
+        photoPath={photoPaths[currentIndex]}
+        onClick={() => onPhotoClick?.(currentIndex)}
+      />
+
+      {/* Previous Button */}
+      <button
+        onClick={goToPrevious}
+        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
+        aria-label="Previous photo"
+      >
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </button>
+
+      {/* Next Button */}
+      <button
+        onClick={goToNext}
+        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
+        aria-label="Next photo"
+      >
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </button>
+
+      {/* Indicators */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+        {photoPaths.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentIndex(index)}
+            className={`w-2 h-2 rounded-full transition-colors ${
+              index === currentIndex
+                ? "bg-white"
+                : "bg-white/50 hover:bg-white/75"
+            }`}
+            aria-label={`Go to photo ${index + 1}`}
+          />
+        ))}
+      </div>
+
+      {/* Counter */}
+      <div className="absolute top-4 right-4 bg-black/50 text-white text-sm px-2 py-1 rounded">
+        {currentIndex + 1} / {photoPaths.length}
+      </div>
+    </div>
+  );
+}
+
+// Full Screen Photo Modal
+function FullScreenPhotoModal({
+  photoPath,
+  onClose,
+}: {
+  photoPath: string | null;
+  onClose: () => void;
+}) {
+  const { url: photoUrl, loading } = useStorageUrl(photoPath || "");
+
+  if (!photoPath) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+      >
+        <svg
+          className="w-8 h-8"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+      {loading ? (
+        <div className="text-white">Loading...</div>
+      ) : (
+        photoUrl && (
+          <img
+            src={photoUrl}
+            alt="Full screen post photo"
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        )
+      )}
+    </div>
+  );
+}
 
 interface PostDetailDrawerProps {
   post: Post | null;
@@ -34,6 +213,7 @@ export default function PostDetailDrawer({
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isUserDrawerOpen, setIsUserDrawerOpen] = useState(false);
   const [loadingUser, setLoadingUser] = useState(false);
+  const [fullScreenPhoto, setFullScreenPhoto] = useState<string | null>(null);
 
   if (!isOpen || !post) return null;
 
@@ -158,13 +338,20 @@ export default function PostDetailDrawer({
   };
 
   // Handle suspend/unsuspend toggle from user detail drawer
-  const handleUserSuspendToggle = async (userId: string, currentStatus: string) => {
+  const handleUserSuspendToggle = async (
+    userId: string,
+    currentStatus: string,
+  ) => {
     try {
       const newStatus =
         currentStatus === USER_STATUS.SUSPENDED
           ? USER_STATUS.ACTIVE
           : USER_STATUS.SUSPENDED;
-      await updateUserStatus(userId, newStatus, config?.suspendDurationDays || 30);
+      await updateUserStatus(
+        userId,
+        newStatus,
+        config?.suspendDurationDays || 30,
+      );
 
       // Update selected user state to reflect changes
       const updatedUser = await fetchUserById(userId);
@@ -305,6 +492,35 @@ export default function PostDetailDrawer({
               <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-2 rounded">
                 {post.category}
               </p>
+            </div>
+
+            {/* Photos Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Photos
+                {post.photoPaths && post.photoPaths.length > 0 && (
+                  <span className="ml-1">({post.photoPaths.length})</span>
+                )}
+              </label>
+              {!post.photoPaths || post.photoPaths.length === 0 ? (
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No photos attached
+                  </p>
+                </div>
+              ) : post.photoPaths.length === 1 ? (
+                <PostPhoto
+                  photoPath={post.photoPaths[0]}
+                  onClick={() => setFullScreenPhoto(post.photoPaths![0])}
+                />
+              ) : (
+                <PhotoCarousel
+                  photoPaths={post.photoPaths}
+                  onPhotoClick={(index) =>
+                    setFullScreenPhoto(post.photoPaths![index])
+                  }
+                />
+              )}
             </div>
 
             <div>
@@ -661,6 +877,14 @@ export default function PostDetailDrawer({
         onWarn={handleUserWarn}
         onSuspendToggle={handleUserSuspendToggle}
       />
+
+      {/* Full Screen Photo Modal */}
+      {fullScreenPhoto && (
+        <FullScreenPhotoModal
+          photoPath={fullScreenPhoto}
+          onClose={() => setFullScreenPhoto(null)}
+        />
+      )}
     </>
   );
 }

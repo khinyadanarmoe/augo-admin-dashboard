@@ -12,8 +12,8 @@ function Announcements() {
   // Handle query parameters
   useEffect(() => {
     const { id } = router.query;
-    
-    if (id && typeof id === 'string') {
+
+    if (id && typeof id === "string") {
       setSearchTerm(id);
     }
   }, [router.query]);
@@ -28,7 +28,10 @@ function Announcements() {
           <header className="mb-8 flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold">Announcement Management</h1>
-              <p className="mt-2 text-zinc-600 dark:text-zinc-400">Manage announcement history with filters by date, faculty, location, and content topic. Track views and status.</p>
+              <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+                Manage announcement history with filters by date, faculty,
+                location, and content topic. Track likes/dislikes and status.
+              </p>
             </div>
             <NotificationBell className="group" />
           </header>

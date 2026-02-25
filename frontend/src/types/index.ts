@@ -45,7 +45,7 @@ export interface Post {
   dislikes: number;
   reportCount: number;
   status: import('./constants').PostStatus;
-  isWarned: boolean;
+  isWarned: boolean; photoPaths?: string[];
 }
 
 // Report related types
@@ -86,7 +86,8 @@ export interface Announcement {
   createdByEmail?: string;
   submittedAt?: Date | string;
   rejectedAt?: Date | string | null;
-  views?: number;
+  likeCount?: number;
+  dislikeCount?: number;
   photoPaths?: string[];
 }
 

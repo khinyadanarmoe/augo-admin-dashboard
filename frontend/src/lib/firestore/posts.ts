@@ -1,6 +1,6 @@
-import { 
-  collection, 
-  getDocs, 
+import {
+  collection,
+  getDocs,
   query,
   orderBy,
   limit,
@@ -46,15 +46,15 @@ export const getAllPosts = async (): Promise<Post[]> => {
       collection(db, POSTS_COLLECTION),
       orderBy('date', 'desc')
     );
-    
+
     const querySnapshot = await getDocs(postsQuery);
     const posts: Post[] = [];
-    
+
     // Fetch all posts with user data
     const postPromises = querySnapshot.docs.map(async (docSnapshot) => {
       const data = docSnapshot.data();
       const userName = await getUserName(data.userId);
-      
+
       return {
         id: docSnapshot.id,
         postDate: data.date?.toDate ? data.date.toDate().toISOString() : new Date().toISOString(),
@@ -66,13 +66,14 @@ export const getAllPosts = async (): Promise<Post[]> => {
         dislikes: data.dislikeCount || 0,
         reportCount: data.reportCount || 0,
         status: data.status || 'active',
-        isWarned: data.isWarned || false
+        isWarned: data.isWarned || false,
+        photoPaths: data.photoPaths || []
       };
     });
-    
+
     const resolvedPosts = await Promise.all(postPromises);
     return resolvedPosts;
-    
+
     return posts;
   } catch (error) {
     console.error('Error fetching posts:', error);
@@ -91,18 +92,18 @@ export const subscribeToPostsUpdates = (
     collection(db, POSTS_COLLECTION),
     orderBy('date', 'desc')
   );
-  
+
   return onSnapshot(
     postsQuery,
     async (snapshot) => {
       try {
         const posts: Post[] = [];
-        
+
         // Fetch all posts with user data
         const postPromises = snapshot.docs.map(async (docSnapshot) => {
           const data = docSnapshot.data();
           const userName = await getUserName(data.userId);
-          
+
           return {
             id: docSnapshot.id,
             postDate: data.date?.toDate ? data.date.toDate().toISOString() : new Date().toISOString(),
@@ -114,10 +115,11 @@ export const subscribeToPostsUpdates = (
             dislikes: data.dislikeCount || 0,
             reportCount: data.reportCount || 0,
             status: data.status || 'active',
-            isWarned: data.isWarned || false
+            isWarned: data.isWarned || false,
+            photoPaths: data.photoPaths || []
           };
         });
-        
+
         const resolvedPosts = await Promise.all(postPromises);
         callback(resolvedPosts);
       } catch (error) {
@@ -157,10 +159,10 @@ export const markUserPostsAsWarned = async (userId: string): Promise<string[]> =
       collection(db, POSTS_COLLECTION),
       where('userId', '==', userId)
     );
-    
+
     const snapshot = await getDocs(postsQuery);
     const postIds: string[] = [];
-    
+
     const updatePromises = snapshot.docs.map(doc => {
       postIds.push(doc.id);
       return updateDoc(doc.ref, {
@@ -168,7 +170,7 @@ export const markUserPostsAsWarned = async (userId: string): Promise<string[]> =
         lastUpdated: new Date().toISOString()
       });
     });
-    
+
     await Promise.all(updatePromises);
     return postIds;
   } catch (error) {
