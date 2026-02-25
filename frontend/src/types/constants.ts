@@ -3,6 +3,7 @@ export const USER_STATUS = {
   ACTIVE: 'active',
   INACTIVE: 'inactive',
   WARNING: 'warning',
+  SUSPENDED: 'suspended',
   BANNED: 'banned'
 } as const;
 
@@ -21,7 +22,7 @@ export type PostStatus = typeof POST_STATUS[keyof typeof POST_STATUS];
 export const REPORT_CATEGORIES = {
   // High severity (🔴 Red) - Auto-removes post
   THREATS_VIOLENCE: 'threats_violence',
-  NUDITY: 'nudity',
+  NUDITY: 'inappropriate',
   HATE_SPEECH: 'hate_speech',
   SCAM: 'scam',
 
@@ -73,7 +74,7 @@ export const SEVERITY_LABELS: Record<ReportSeverity, string> = {
 // Category display labels
 export const CATEGORY_LABELS: Record<ReportCategory, string> = {
   [REPORT_CATEGORIES.THREATS_VIOLENCE]: 'Threats / Violence',
-  [REPORT_CATEGORIES.NUDITY]: 'Nudity',
+  [REPORT_CATEGORIES.NUDITY]: 'Inappropriate',
   [REPORT_CATEGORIES.HATE_SPEECH]: 'Hate Speech',
   [REPORT_CATEGORIES.SCAM]: 'Scam',
   [REPORT_CATEGORIES.HARASSMENT]: 'Harassment',

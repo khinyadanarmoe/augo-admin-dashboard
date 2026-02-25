@@ -157,14 +157,14 @@ export default function PostDetailDrawer({
     }
   };
 
-  // Handle ban/unban toggle from user detail drawer
-  const handleUserBanToggle = async (userId: string, currentStatus: string) => {
+  // Handle suspend/unsuspend toggle from user detail drawer
+  const handleUserSuspendToggle = async (userId: string, currentStatus: string) => {
     try {
       const newStatus =
-        currentStatus === USER_STATUS.BANNED
+        currentStatus === USER_STATUS.SUSPENDED
           ? USER_STATUS.ACTIVE
-          : USER_STATUS.BANNED;
-      await updateUserStatus(userId, newStatus, config?.banDurationDays || 30);
+          : USER_STATUS.SUSPENDED;
+      await updateUserStatus(userId, newStatus, config?.suspendDurationDays || 30);
 
       // Update selected user state to reflect changes
       const updatedUser = await fetchUserById(userId);
@@ -173,7 +173,7 @@ export default function PostDetailDrawer({
       }
 
       console.log(
-        `User ${newStatus === USER_STATUS.BANNED ? "banned" : "unbanned"} successfully:`,
+        `User ${newStatus === USER_STATUS.SUSPENDED ? "suspended" : "unsuspended"} successfully:`,
         userId,
       );
     } catch (error) {
@@ -659,7 +659,7 @@ export default function PostDetailDrawer({
         isOpen={isUserDrawerOpen}
         onClose={handleCloseUserDrawer}
         onWarn={handleUserWarn}
-        onBanToggle={handleUserBanToggle}
+        onSuspendToggle={handleUserSuspendToggle}
       />
     </>
   );

@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Announcement } from "@/types/export";
 import {
   getAnnouncementStatusColor,
   formatAnnouncementStatus,
 } from "@/utils/announcementUtils";
 import { useStorageUrl } from "@/lib/storageUtils";
+import { fetchAnnouncerById } from "@/lib/firestore/announcers";
 
 // Component to display individual photo (needed for hook usage)
 function AnnouncementPhoto({
@@ -35,6 +36,68 @@ function AnnouncementPhoto({
       className="w-full h-64 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
       onClick={onClick}
     />
+  );
+}
+
+// Component to display announcer profile picture
+function AnnouncerProfilePicture({
+  announcerUID,
+  announcerName,
+}: {
+  announcerUID: string;
+  announcerName: string;
+}) {
+  const [profilePicturePath, setProfilePicturePath] = useState<string | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(true);
+  const { url: profileUrl } = useStorageUrl(profilePicturePath || "");
+
+  useEffect(() => {
+    const loadAnnouncerProfile = async () => {
+      try {
+        const announcer = await fetchAnnouncerById(announcerUID);
+        if (announcer?.profilePicture) {
+          setProfilePicturePath(announcer.profilePicture);
+        }
+      } catch (error) {
+        console.error("Error loading announcer profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAnnouncerProfile();
+  }, [announcerUID]);
+
+  if (loading) {
+    return (
+      <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+    );
+  }
+
+  if (profileUrl) {
+    return (
+      <img
+        src={profileUrl}
+        alt={`${announcerName}'s profile`}
+        className="w-20 h-20 object-cover rounded-lg"
+      />
+    );
+  }
+
+  // Fallback to initials
+  return (
+    <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+      <span className="text-xl font-bold text-purple-600 dark:text-purple-300">
+        {announcerName
+          ? announcerName
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+          : "A"}
+      </span>
+    </div>
   );
 }
 
@@ -282,16 +345,10 @@ export default function AnnouncementDetailDrawer({
             <div className="flex items-center space-x-4 mb-4">
               {/* Profile Picture - Left Side */}
               <div className="relative shrink-0">
-                <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                  <span className="text-xl font-bold text-purple-600 dark:text-purple-300">
-                    {announcement.createdByName
-                      ? announcement.createdByName
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                      : "A"}
-                  </span>
-                </div>
+                <AnnouncerProfilePicture
+                  announcerUID={announcement.createdByUID}
+                  announcerName={announcement.createdByName || "Announcer"}
+                />
               </div>
 
               {/* Announcer Info - Right Side */}

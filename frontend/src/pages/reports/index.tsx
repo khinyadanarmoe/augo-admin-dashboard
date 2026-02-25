@@ -55,8 +55,9 @@ function Reports() {
               <h1 className="text-3xl font-bold">Report Management</h1>
               <p className="mt-2 text-zinc-600 dark:text-zinc-400">
                 Manage user reports by severity. High severity reports (threats,
-                nudity, hate speech, scam) auto-remove posts. Track harassment,
-                impersonation, misinformation, spam, and other violations.
+                inappropriate content, hate speech, scam) auto-remove posts.
+                Track harassment, impersonation, misinformation, spam, and other
+                violations.
               </p>
             </div>
             <NotificationBell className="group" />

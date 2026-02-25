@@ -400,7 +400,7 @@ export default function ReportTable({
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="">All Categories</option>
-              <optgroup label="🔴 High Severity">
+              <optgroup label="High Severity">
                 <option value={REPORT_CATEGORIES.THREATS_VIOLENCE}>
                   {CATEGORY_LABELS[REPORT_CATEGORIES.THREATS_VIOLENCE]}
                 </option>
@@ -414,7 +414,7 @@ export default function ReportTable({
                   {CATEGORY_LABELS[REPORT_CATEGORIES.SCAM]}
                 </option>
               </optgroup>
-              <optgroup label="🟡 Medium Severity">
+              <optgroup label="Medium Severity">
                 <option value={REPORT_CATEGORIES.HARASSMENT}>
                   {CATEGORY_LABELS[REPORT_CATEGORIES.HARASSMENT]}
                 </option>
@@ -425,12 +425,12 @@ export default function ReportTable({
                   {CATEGORY_LABELS[REPORT_CATEGORIES.MISINFORMATION]}
                 </option>
               </optgroup>
-              <optgroup label="🟢 Low Severity">
+              <optgroup label="Low Severity">
                 <option value={REPORT_CATEGORIES.SPAM}>
                   {CATEGORY_LABELS[REPORT_CATEGORIES.SPAM]}
                 </option>
               </optgroup>
-              <optgroup label="🟤 Other">
+              <optgroup label="Other">
                 <option value={REPORT_CATEGORIES.OTHER}>
                   {CATEGORY_LABELS[REPORT_CATEGORIES.OTHER]}
                 </option>

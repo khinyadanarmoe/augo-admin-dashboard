@@ -3,7 +3,7 @@
  * This service enforces all the configuration-based business rules across the application
  * 
  * Report Severity Rules:
- * - HIGH (🔴): Threats/Violence, Nudity, Hate Speech, Scam
+ * - HIGH (🔴): Threats/Violence, Inappropriate, Hate Speech, Scam
  *   → Auto-removes post immediately via Cloud Function
  *   → Sends notification to reported user
  *   → Marks report as resolved

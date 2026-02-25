@@ -103,7 +103,32 @@ function ARModelRow({
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="text-sm text-gray-900 dark:text-white">
-          {formatCoordinates(model.latitude, model.longitude)}
+          {model.fixedLocations && model.fixedLocations.length > 0 ? (
+            <span className="flex items-center gap-1">
+              <svg
+                className="w-4 h-4 text-purple-600 dark:text-purple-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              {model.fixedLocations.length} spawn points
+            </span>
+          ) : (
+            formatCoordinates(model.latitude, model.longitude)
+          )}
         </div>
         <div className="text-xs text-gray-500 dark:text-gray-400">
           Catch: {model.catchRadius}m | Reveal: {model.revealRadius}m
@@ -119,63 +144,31 @@ function ARModelRow({
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         {(() => {
-          const now = new Date();
-          const startTime = model.startTime ? new Date(model.startTime) : null;
-          const endTime = model.endTime ? new Date(model.endTime) : null;
-
-          // Determine status based on time and isActive flag
-          let status = "";
+          // Simple status display with icons
+          let displayStatus = "";
           let icon = "";
-          let timeDisplay = "";
+          let colorClass = "";
 
-          if (!model.isActive) {
-            // Model is manually set to inactive
-            if (endTime && now > endTime) {
-              icon = "⚫";
-              status = "Ended";
-            } else if (startTime && now < startTime) {
-              icon = "🟡";
-              status = "Starts";
-              timeDisplay = startTime.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-            } else {
-              icon = "⚫";
-              status = "Inactive";
-            }
+          if (model.status === "active") {
+            icon = "🟢";
+            displayStatus = "Active";
+            colorClass = "text-green-600 dark:text-green-400";
+          } else if (model.status === "scheduled") {
+            icon = "🟡";
+            displayStatus = "Scheduled";
+            colorClass = "text-yellow-600 dark:text-yellow-400";
           } else {
-            // Model is active
-            if (endTime && now > endTime) {
-              icon = "⚫";
-              status = "Ended";
-            } else if (startTime && now < startTime) {
-              icon = "🟡";
-              status = "Starts";
-              timeDisplay = startTime.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-            } else if (startTime && endTime) {
-              icon = "🟢";
-              status = "Live";
-              timeDisplay = `(${startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – ${endTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`;
-            } else {
-              icon = "🟢";
-              status = "Live";
-            }
+            icon = "⚫";
+            displayStatus = "Inactive";
+            colorClass = "text-gray-600 dark:text-gray-400";
           }
 
           return (
-            <div>
-              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                {icon} {status}
-              </div>
-              {timeDisplay && (
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {timeDisplay}
-                </div>
-              )}
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">{icon}</span>
+              <span className={`text-sm font-medium ${colorClass}`}>
+                {displayStatus}
+              </span>
             </div>
           );
         })()}
@@ -232,7 +225,7 @@ export default function ARModelsTable({
   const router = useRouter();
   const toast = useToast();
   const { isAuthenticated, isLoading } = useAdminAuth();
-  const rowsPerPage = 10;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [rarityFilter, setRarityFilter] = useState("");
@@ -298,10 +291,7 @@ export default function ARModelsTable({
 
     const rarityMatch = rarityFilter === "" || model.rarity === rarityFilter;
 
-    const statusMatch =
-      statusFilter === "" ||
-      (statusFilter === "active" && model.isActive) ||
-      (statusFilter === "inactive" && !model.isActive);
+    const statusMatch = statusFilter === "" || statusFilter === model.status;
 
     return nameMatch && categoryMatch && rarityMatch && statusMatch;
   });
@@ -330,6 +320,11 @@ export default function ARModelsTable({
     setCurrentPage(page);
   };
 
+  const handleRowsPerPageChange = (rows: number) => {
+    setRowsPerPage(rows);
+    setCurrentPage(1);
+  };
+
   const handleSortByRewards = (field: "point" | "coin_value") => {
     if (sortBy === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -349,6 +344,10 @@ export default function ARModelsTable({
           edit: "true",
           id: model.id,
           ...model,
+          // Serialize fixedLocations array as JSON string for URL
+          fixedLocations: model.fixedLocations
+            ? JSON.stringify(model.fixedLocations)
+            : undefined,
         },
       });
     }
@@ -458,6 +457,7 @@ export default function ARModelsTable({
             >
               <option value="">All Status</option>
               <option value="active">Active</option>
+              <option value="scheduled">Scheduled</option>
               <option value="inactive">Inactive</option>
             </select>
           </div>
@@ -537,44 +537,135 @@ export default function ARModelsTable({
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div className="text-sm text-gray-700 dark:text-gray-300">
-            Showing {startIndex + 1} to{" "}
-            {Math.min(startIndex + rowsPerPage, filteredModels.length)} of{" "}
-            {filteredModels.length} results
+      <div className="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+            <span>Rows per page</span>
+            <select
+              value={rowsPerPage}
+              onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
+              className="mx-2 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-700"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <span>
+              {startIndex + 1}-
+              {Math.min(startIndex + rowsPerPage, filteredModels.length)} of{" "}
+              {filteredModels.length} rows
+            </span>
           </div>
           <div className="flex items-center space-x-2">
             <button
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              className="p-1 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+              className="p-1 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                className={`px-3 py-1 rounded-lg ${
-                  currentPage === page
-                    ? "bg-purple-600 text-white"
-                    : "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                }`}
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                {page}
-              </button>
-            ))}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const page = i + 1;
+              return (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded ${
+                    currentPage === page
+                      ? "bg-purple-50 dark:bg-purple-900 text-purple-600 dark:text-purple-300"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+            {totalPages > 5 && (
+              <>
+                <span className="px-2 text-gray-700 dark:text-gray-300">
+                  ...
+                </span>
+                <button
+                  onClick={() => handlePageChange(totalPages)}
+                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+              className="p-1 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className="p-1 rounded border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                />
+              </svg>
             </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Delete Confirmation Modal */}
       {deleteModal.isOpen && (

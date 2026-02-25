@@ -1,4 +1,4 @@
-import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, getDoc } from "firebase/firestore";
 import { db, functions } from "@/lib/firebase";
 import { Announcer } from "@/types/export";
 import { ANNOUNCER_STATUS } from "@/types/constants";
@@ -11,6 +11,27 @@ export async function fetchAnnouncers(): Promise<Announcer[]> {
         id: doc.id,
         ...(doc.data() as Omit<Announcer, 'id'>)
     }));
+}
+
+/**
+ * Fetch a single announcer by ID
+ */
+export async function fetchAnnouncerById(id: string): Promise<Announcer | null> {
+    try {
+        const announcerDoc = doc(db, "announcers", id);
+        const snapshot = await getDoc(announcerDoc);
+
+        if (snapshot.exists()) {
+            return {
+                id: snapshot.id,
+                ...(snapshot.data() as Omit<Announcer, 'id'>)
+            } as Announcer;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching announcer:', error);
+        return null;
+    }
 }
 
 export interface NewAnnouncerData {

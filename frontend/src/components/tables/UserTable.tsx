@@ -19,7 +19,8 @@ import {
   EyeIcon,
   WarnIcon,
   BanIcon,
-  UnbanIcon,
+  SuspendIcon,
+  UnsuspendIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronDoubleLeftIcon,
@@ -37,7 +38,8 @@ export default function UserTable({
 }: UserTableProps) {
   const { isAuthenticated, isLoading } = useAdminAuth();
   const { config } = useAdminConfiguration();
-  const banThreshold = config?.banThreshold || 5;
+  const suspendThreshold = config?.suspendThreshold || 5;
+  const banAfterSuspendCount = config?.banAfterSuspendCount || 3;
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [statusFilter, setStatusFilter] = useState("");
   const [facultyFilter, setFacultyFilter] = useState("");
@@ -56,6 +58,11 @@ export default function UserTable({
     currentStatus: string;
     userName: string;
   }>({ isOpen: false, userId: "", currentStatus: "", userName: "" });
+  const [warnModal, setWarnModal] = useState<{
+    isOpen: boolean;
+    userId: string;
+    userName: string;
+  }>({ isOpen: false, userId: "", userName: "" });
 
   useEffect(() => {
     setLoading(true);
@@ -64,29 +71,55 @@ export default function UserTable({
         const users: User[] = data.map((user) => ({
           ...user,
           status: user.status.toLowerCase() as UserStatus,
+          suspendCount: user.suspendCount || 0,
         }));
 
-        // Auto-ban users whose warningCount >= banThreshold
-        const autoBanPromises = users
+        const autoModerationPromises: Promise<void>[] = [];
+
+        // Auto-ban users whose suspendCount >= banAfterSuspendCount
+        users
           .filter(
             (u) =>
-              u.warningCount >= banThreshold && u.status !== USER_STATUS.BANNED,
+              (u.suspendCount || 0) >= banAfterSuspendCount &&
+              u.status !== USER_STATUS.BANNED,
           )
-          .map(async (u) => {
-            await updateUserStatus(
-              u.id,
-              USER_STATUS.BANNED,
-              config?.banDurationDays || 30,
+          .forEach((u) => {
+            autoModerationPromises.push(
+              updateUserStatus(u.id, USER_STATUS.BANNED).then(() => {
+                u.status = USER_STATUS.BANNED as UserStatus;
+              }),
             );
-            u.status = USER_STATUS.BANNED as UserStatus;
           });
-        await Promise.all(autoBanPromises);
+
+        // Auto-suspend users whose warningCount >= suspendThreshold (only if not already banned)
+        users
+          .filter(
+            (u) =>
+              u.warningCount >= suspendThreshold &&
+              u.status !== USER_STATUS.SUSPENDED &&
+              u.status !== USER_STATUS.BANNED &&
+              (u.suspendCount || 0) < banAfterSuspendCount,
+          )
+          .forEach((u) => {
+            autoModerationPromises.push(
+              updateUserStatus(
+                u.id,
+                USER_STATUS.SUSPENDED,
+                config?.suspendDurationDays || 30,
+              ).then(() => {
+                u.status = USER_STATUS.SUSPENDED as UserStatus;
+                u.suspendCount = (u.suspendCount || 0) + 1;
+              }),
+            );
+          });
+
+        await Promise.all(autoModerationPromises);
 
         setFetchedUsers(users);
       })
       .catch((err) => console.error("Error fetching users:", err))
       .finally(() => setLoading(false));
-  }, [banThreshold]);
+  }, [suspendThreshold, banAfterSuspendCount]);
 
   // Update search term when initialSearchTerm changes
   useEffect(() => {
@@ -158,6 +191,8 @@ export default function UserTable({
         return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
       case USER_STATUS.WARNING:
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
+      case USER_STATUS.SUSPENDED:
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
       case USER_STATUS.BANNED:
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
       default:
@@ -176,7 +211,18 @@ export default function UserTable({
     setSelectedUser(null);
   };
 
-  const handleWarn = async (userId: string) => {
+  const handleWarn = (userId: string) => {
+    const user = displayUsers.find((u) => u.id === userId);
+    setWarnModal({
+      isOpen: true,
+      userId,
+      userName: user?.name || "this user",
+    });
+  };
+
+  const confirmWarn = async () => {
+    const { userId } = warnModal;
+    setWarnModal({ isOpen: false, userId: "", userName: "" });
     try {
       // Increment warning count
       await incrementUserWarningCount(userId);
@@ -197,22 +243,36 @@ export default function UserTable({
         status: user.status.toLowerCase() as UserStatus,
       }));
 
-      // Auto-ban if warning count now exceeds threshold
+      // Auto-suspend if warning count now exceeds threshold, or ban if suspend count is too high
       const warnedUser = users.find((u) => u.id === userId);
-      if (
-        warnedUser &&
-        warnedUser.warningCount >= banThreshold &&
-        warnedUser.status !== USER_STATUS.BANNED
-      ) {
-        await updateUserStatus(
-          userId,
-          USER_STATUS.BANNED,
-          config?.banDurationDays || 30,
-        );
-        warnedUser.status = USER_STATUS.BANNED as UserStatus;
-      } else if (warnedUser && warnedUser.status !== USER_STATUS.BANNED) {
-        await updateUserStatus(userId, USER_STATUS.WARNING);
-        warnedUser.status = USER_STATUS.WARNING as UserStatus;
+      if (warnedUser) {
+        // First check if should be permanently banned (suspendCount >= threshold)
+        if ((warnedUser.suspendCount || 0) >= banAfterSuspendCount) {
+          await updateUserStatus(userId, USER_STATUS.BANNED);
+          warnedUser.status = USER_STATUS.BANNED as UserStatus;
+        }
+        // Then check if should be suspended (warningCount >= threshold)
+        else if (
+          warnedUser.warningCount >= suspendThreshold &&
+          warnedUser.status !== USER_STATUS.SUSPENDED &&
+          warnedUser.status !== USER_STATUS.BANNED
+        ) {
+          await updateUserStatus(
+            userId,
+            USER_STATUS.SUSPENDED,
+            config?.suspendDurationDays || 30,
+          );
+          warnedUser.status = USER_STATUS.SUSPENDED as UserStatus;
+          warnedUser.suspendCount = (warnedUser.suspendCount || 0) + 1;
+        }
+        // Otherwise just set to warning
+        else if (
+          warnedUser.status !== USER_STATUS.SUSPENDED &&
+          warnedUser.status !== USER_STATUS.BANNED
+        ) {
+          await updateUserStatus(userId, USER_STATUS.WARNING);
+          warnedUser.status = USER_STATUS.WARNING as UserStatus;
+        }
       }
 
       setFetchedUsers(users);
@@ -228,7 +288,7 @@ export default function UserTable({
     }
   };
 
-  const handleBanToggle = async (userId: string, currentStatus: string) => {
+  const handleSuspendToggle = async (userId: string, currentStatus: string) => {
     const user = displayUsers.find((u) => u.id === userId);
     setConfirmModal({
       isOpen: true,
@@ -238,7 +298,7 @@ export default function UserTable({
     });
   };
 
-  const confirmBanToggle = async () => {
+  const confirmSuspendToggle = async () => {
     const { userId, currentStatus } = confirmModal;
     setConfirmModal({
       isOpen: false,
@@ -248,10 +308,14 @@ export default function UserTable({
     });
     try {
       const newStatus =
-        currentStatus === USER_STATUS.BANNED
+        currentStatus === USER_STATUS.SUSPENDED
           ? USER_STATUS.ACTIVE
-          : USER_STATUS.BANNED;
-      await updateUserStatus(userId, newStatus, config?.banDurationDays || 30);
+          : USER_STATUS.SUSPENDED;
+      await updateUserStatus(
+        userId,
+        newStatus,
+        config?.suspendDurationDays || 30,
+      );
 
       setLoading(true);
       const updatedUsers = await fetchUsers();
@@ -259,7 +323,7 @@ export default function UserTable({
       setLoading(false);
 
       console.log(
-        `User ${newStatus === USER_STATUS.BANNED ? "banned" : "unbanned"} successfully:`,
+        `User ${newStatus === USER_STATUS.SUSPENDED ? "suspended" : "unsuspended"} successfully:`,
         userId,
       );
     } catch (error) {
@@ -331,6 +395,7 @@ export default function UserTable({
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
+              <RegularTableHeader label="Suspend Count" />
               <RegularTableHeader label="Status" />
               <RegularTableHeader label="Actions" />
             </tr>
@@ -385,6 +450,19 @@ export default function UserTable({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
+                    className={`px-3 py-1 text-sm font-medium rounded-full ${
+                      (user.suspendCount || 0) >= banAfterSuspendCount
+                        ? "bg-red-100 text-red-800 border border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-800"
+                        : (user.suspendCount || 0) > 0
+                          ? "bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900 dark:text-amber-300 dark:border-amber-800"
+                          : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {user.suspendCount || 0}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(user.status)}`}
                   >
                     {user.status}
@@ -418,18 +496,35 @@ export default function UserTable({
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleBanToggle(user.id, user.status)}
-                    className={
-                      user.status === USER_STATUS.BANNED
-                        ? "text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 p-1"
-                        : "text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1"
+                    onClick={() => handleSuspendToggle(user.id, user.status)}
+                    disabled={
+                      user.status === USER_STATUS.BANNED ||
+                      (user.suspendCount || 0) >= banAfterSuspendCount
                     }
-                    title={user.status === USER_STATUS.BANNED ? "Unban" : "Ban"}
+                    className={
+                      user.status === USER_STATUS.BANNED ||
+                      (user.suspendCount || 0) >= banAfterSuspendCount
+                        ? "text-gray-400 dark:text-gray-600 cursor-not-allowed p-1"
+                        : user.status === USER_STATUS.SUSPENDED
+                          ? "text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 p-1"
+                          : "text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 p-1"
+                    }
+                    title={
+                      user.status === USER_STATUS.BANNED
+                        ? "Permanently Banned"
+                        : (user.suspendCount || 0) >= banAfterSuspendCount
+                          ? "Will be auto-banned on next warning"
+                          : user.status === USER_STATUS.SUSPENDED
+                            ? "Unsuspend"
+                            : "Suspend"
+                    }
                   >
                     {user.status === USER_STATUS.BANNED ? (
                       <BanIcon className="w-4 h-4" />
+                    ) : user.status === USER_STATUS.SUSPENDED ? (
+                      <UnsuspendIcon className="w-4 h-4" />
                     ) : (
-                      <UnbanIcon className="w-4 h-4" />
+                      <SuspendIcon className="w-4 h-4" />
                     )}
                   </button>
                 </td>
@@ -568,19 +663,59 @@ export default function UserTable({
         </div>
       </div>
 
-      {/* Confirm Ban/Unban Modal */}
+      {/* Confirm Warn Modal */}
+      {warnModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Warn User
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Are you sure you want to warn {warnModal.userName}? This will:
+              <ul className="list-disc ml-5 mt-2">
+                <li>Increment their warning count by 1</li>
+                <li>Mark all their posts as warned</li>
+                <li>Resolve all reports for their posts</li>
+                {config && config.suspendThreshold && (
+                  <li className="text-orange-600 dark:text-orange-400 font-medium">
+                    Auto-suspend if warnings reach {config.suspendThreshold}
+                  </li>
+                )}
+              </ul>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() =>
+                  setWarnModal({ isOpen: false, userId: "", userName: "" })
+                }
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmWarn}
+                className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors"
+              >
+                Warn User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Suspend/Unsuspend Modal */}
       {confirmModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {confirmModal.currentStatus === USER_STATUS.BANNED
-                ? "Unban User"
-                : "Ban User"}
+              {confirmModal.currentStatus === USER_STATUS.SUSPENDED
+                ? "Unsuspend User"
+                : "Suspend User"}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              {confirmModal.currentStatus === USER_STATUS.BANNED
-                ? `Are you sure you want to unban ${confirmModal.userName}? They will be able to create posts again.`
-                : `Are you sure you want to ban ${confirmModal.userName}? They will no longer be able to create posts.`}
+              {confirmModal.currentStatus === USER_STATUS.SUSPENDED
+                ? `Are you sure you want to unsuspend ${confirmModal.userName}? They will be able to create posts again.`
+                : `Are you sure you want to suspend ${confirmModal.userName}? They will no longer be able to create posts for ${config?.suspendDurationDays || 30} days.`}
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -597,16 +732,16 @@ export default function UserTable({
                 Cancel
               </button>
               <button
-                onClick={confirmBanToggle}
+                onClick={confirmSuspendToggle}
                 className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
-                  confirmModal.currentStatus === USER_STATUS.BANNED
+                  confirmModal.currentStatus === USER_STATUS.SUSPENDED
                     ? "bg-green-600 hover:bg-green-700"
-                    : "bg-red-600 hover:bg-red-700"
+                    : "bg-orange-600 hover:bg-orange-700"
                 }`}
               >
-                {confirmModal.currentStatus === USER_STATUS.BANNED
-                  ? "Unban"
-                  : "Ban"}
+                {confirmModal.currentStatus === USER_STATUS.SUSPENDED
+                  ? "Unsuspend"
+                  : "Suspend"}
               </button>
             </div>
           </div>
@@ -619,7 +754,7 @@ export default function UserTable({
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
         onWarn={handleWarn}
-        onBanToggle={handleBanToggle}
+        onSuspendToggle={handleSuspendToggle}
       />
     </div>
   );

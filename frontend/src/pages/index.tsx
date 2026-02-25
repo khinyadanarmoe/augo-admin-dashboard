@@ -50,6 +50,7 @@ function Home() {
       <Head>
         <title>AUGo Admin Dashboard</title>
         <meta name="description" content="AUGo Administration Dashboard" />
+        <link rel="icon" href={Icons.logo} />
       </Head>
       <div className="min-h-screen bg-purple-50/40 dark:bg-black text-zinc-900 dark:text-zinc-50">
         <div className="flex min-h-screen p-4">

@@ -4,7 +4,7 @@ import * as admin from "firebase-admin";
 // High severity categories that trigger auto-removal
 const HIGH_SEVERITY_CATEGORIES = [
     "threats_violence",
-    "nudity",
+    "inappropriate",
     "hate_speech",
     "scam",
 ];
@@ -19,9 +19,14 @@ export const handleNewReport = functions.firestore
         const report = snapshot.data();
         const reportId = context.params.reportId;
 
+        console.log(`[handleNewReport] Triggered for report ${reportId}`);
+        console.log(`[handleNewReport] Report category: ${report.category}`);
+        console.log(`[handleNewReport] High severity categories:`, HIGH_SEVERITY_CATEGORIES);
+
         try {
             // Check if report category is high severity
             if (HIGH_SEVERITY_CATEGORIES.includes(report.category)) {
+                console.log(`[handleNewReport] Category "${report.category}" is HIGH SEVERITY - proceeding with auto-removal`);
                 const postId = report.postId;
 
                 if (!postId) {
@@ -59,7 +64,7 @@ export const handleNewReport = functions.firestore
                 // Optionally: Send notification to reported user
                 const reportedUserId = report.reported?.id;
                 if (reportedUserId) {
-                    await admin.firestore().collection("notifications").add({
+                    await admin.firestore().collection("user_notifications").add({
                         userId: reportedUserId,
                         type: "post_removed",
                         title: "Post Removed",
@@ -73,11 +78,15 @@ export const handleNewReport = functions.firestore
                         },
                     });
                 }
+            } else {
+                console.log(`[handleNewReport] Category "${report.category}" is NOT high severity - no auto-removal`);
             }
         } catch (error) {
-            console.error("Error handling new report:", error);
+            console.error("[handleNewReport] Error handling new report:", error);
             throw error;
         }
+
+        console.log(`[handleNewReport] Completed processing for report ${reportId}`);
     });
 
 /**

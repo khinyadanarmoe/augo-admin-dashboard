@@ -30,8 +30,9 @@ export const DEFAULT_CONFIGURATION: Omit<AdminConfiguration, 'id' | 'lastUpdated
   dailyFreeCoin: 10,
   maxActiveAnnouncements: 3,
   urgentAnnouncementThreshold: 48,
-  banThreshold: 5,
-  banDurationDays: 30
+  suspendThreshold: 5,
+  suspendDurationDays: 30,
+  banAfterSuspendCount: 3
 };
 
 /**
@@ -55,8 +56,9 @@ export const getAdminConfiguration = async (): Promise<AdminConfiguration> => {
         dailyFreeCoin: data.dailyFreeCoin || DEFAULT_CONFIGURATION.dailyFreeCoin,
         maxActiveAnnouncements: data.maxActiveAnnouncements || DEFAULT_CONFIGURATION.maxActiveAnnouncements,
         urgentAnnouncementThreshold: data.urgentAnnouncementThreshold || DEFAULT_CONFIGURATION.urgentAnnouncementThreshold,
-        banThreshold: data.banThreshold || DEFAULT_CONFIGURATION.banThreshold,
-        banDurationDays: data.banDurationDays || DEFAULT_CONFIGURATION.banDurationDays,
+        suspendThreshold: data.suspendThreshold || data.banThreshold || DEFAULT_CONFIGURATION.suspendThreshold,
+        suspendDurationDays: data.suspendDurationDays || data.banDurationDays || DEFAULT_CONFIGURATION.suspendDurationDays,
+        banAfterSuspendCount: data.banAfterSuspendCount || DEFAULT_CONFIGURATION.banAfterSuspendCount,
         lastUpdated: data.lastUpdated || new Date().toISOString(),
         updatedBy: data.updatedBy || 'migration'
       };
@@ -186,6 +188,19 @@ export const subscribeToConfiguration = (
       }
     },
     (error) => {
+      // Silently handle permission errors (expected after logout)
+      if (error.code === 'permission-denied') {
+        console.log('Configuration access denied - user likely logged out');
+        const fallbackConfig: AdminConfiguration = {
+          id: DEFAULT_CONFIG_ID,
+          ...DEFAULT_CONFIGURATION,
+          lastUpdated: new Date().toISOString(),
+          updatedBy: 'fallback'
+        };
+        callback(fallbackConfig);
+        return;
+      }
+
       console.error('Error subscribing to configuration:', error);
 
       // Provide fallback configuration

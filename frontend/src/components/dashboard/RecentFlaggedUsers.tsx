@@ -5,6 +5,7 @@ export interface FlaggedUser {
   id: string;
   name: string;
   warningCount: number;
+  isSuspended: boolean;
   isBanned: boolean;
   flaggedAt: string; // formatted date string e.g. "10 Nov 2026, 11:00 PM"
   flaggedAtTimestamp: number; // unix ms for filtering
@@ -25,12 +26,12 @@ export default function RecentFlaggedUsers({ users }: RecentFlaggedUsersProps) {
   // Filter users based on selected time period
   const now = Date.now();
   const cutoff = now - period * 24 * 60 * 60 * 1000;
-  const filteredUsers = allUsers.filter(u => u.flaggedAtTimestamp >= cutoff);
+  const filteredUsers = allUsers.filter((u) => u.flaggedAtTimestamp >= cutoff);
 
   const periodLabels: Record<TimePeriod, string> = {
-    7: '7 Days',
-    30: '30 Days',
-    90: '90 Days',
+    7: "7 Days",
+    30: "30 Days",
+    90: "90 Days",
   };
 
   const handleUserClick = (id: string) => {
@@ -57,8 +58,8 @@ export default function RecentFlaggedUsers({ users }: RecentFlaggedUsersProps) {
               onClick={() => setPeriod(p)}
               className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                 period === p
-                  ? 'bg-white dark:bg-gray-600 text-purple-700 dark:text-purple-300 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  ? "bg-white dark:bg-gray-600 text-purple-700 dark:text-purple-300 shadow-sm"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
               {periodLabels[p]}
@@ -80,6 +81,11 @@ export default function RecentFlaggedUsers({ users }: RecentFlaggedUsersProps) {
                 <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                   {user.name}
                 </span>
+                {user.isSuspended && (
+                  <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-orange-500 text-white rounded">
+                    Suspended
+                  </span>
+                )}
                 {user.isBanned && (
                   <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white rounded">
                     Banned
@@ -99,8 +105,12 @@ export default function RecentFlaggedUsers({ users }: RecentFlaggedUsersProps) {
 
       {filteredUsers.length === 0 && (
         <div className="text-center py-8">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">No flagged users in the last {periodLabels[period].toLowerCase()}</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">All users are in good standing</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            No flagged users in the last {periodLabels[period].toLowerCase()}
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            All users are in good standing
+          </p>
         </div>
       )}
 

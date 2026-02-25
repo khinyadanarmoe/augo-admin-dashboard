@@ -9,10 +9,12 @@ export interface User {
   faculty: string;
   status: import('./constants').UserStatus;
   warningCount: number;
+  suspendCount: number;
   joinedAt: string;
   avatar?: string;
+  suspendedAt?: string;
+  suspendExpiresAt?: string;
   bannedAt?: string;
-  banExpiresAt?: string;
 }
 
 export interface UserProfile extends User {
@@ -152,8 +154,9 @@ export interface AdminConfiguration {
   dailyFreeCoin: number;
   maxActiveAnnouncements: number;
   urgentAnnouncementThreshold: number; // hours before startDate to show in notification
-  banThreshold: number; // warning count threshold for automatic ban
-  banDurationDays: number; // duration in days for user ban (default: 30)
+  suspendThreshold: number; // warning count threshold for automatic suspend
+  suspendDurationDays: number; // duration in days for user suspend (default: 30)
+  banAfterSuspendCount: number; // number of suspensions before permanent ban (default: 3)
   lastUpdated: string;
   updatedBy: string;
 }

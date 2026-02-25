@@ -5,6 +5,7 @@ import {
   addARSpawn,
   updateARSpawn,
   ARSpawnData,
+  SpawnLocation,
 } from "@/lib/firestore/arSpawns";
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 import { ref, uploadBytes } from "firebase/storage";
@@ -29,15 +30,15 @@ interface ARModelFormData {
   slug: string;
   category: string;
   description: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | string;
+  longitude: number | string;
   catchRadius: number;
   revealRadius: number;
   rarity: string;
   catchable_time: number;
   coin_value: number;
   point: number;
-  isActive: boolean;
+  status: "active" | "inactive" | "scheduled";
   startTime: string;
   endTime: string;
   modelFile: File | null;
@@ -54,6 +55,7 @@ function AddARModel() {
   const { query } = router;
   const toast = useToast();
   const isEditMode = query.edit === "true";
+  const isDuplicateMode = query.duplicate === "true";
 
   const [formData, setFormData] = useState<ARModelFormData>({
     name: "",
@@ -68,7 +70,7 @@ function AddARModel() {
     catchable_time: 100,
     coin_value: 0.2,
     point: 10,
-    isActive: true,
+    status: "active",
     startTime: "",
     endTime: "",
     modelFile: null,
@@ -80,6 +82,11 @@ function AddARModel() {
   const [existingPreviewPath, setExistingPreviewPath] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [mapKey, setMapKey] = useState(0);
+  const [spawnMode, setSpawnMode] = useState<"fixed" | "zone" | "random">(
+    "fixed",
+  );
+  const [fixedLocations, setFixedLocations] = useState<SpawnLocation[]>([]);
+  const [selectedLocationIndex, setSelectedLocationIndex] = useState<number>(0);
 
   // Convert existing preview path to download URL
   const { url: existingPreviewUrl } = useStorageUrl(existingPreviewPath);
@@ -101,7 +108,8 @@ function AddARModel() {
         catchable_time: parseInt(query.catchable_time as string) || 100,
         coin_value: parseFloat(query.coin_value as string) || 0.2,
         point: parseInt(query.point as string) || 10,
-        isActive: query.isActive === "true",
+        status:
+          (query.status as "active" | "inactive" | "scheduled") || "active",
         startTime: (query.startTime as string) || "",
         endTime: (query.endTime as string) || "",
         modelFile: null,
@@ -110,12 +118,57 @@ function AddARModel() {
 
       setExistingModelPath((query.modelPath as string) || "");
       setExistingPreviewPath((query.previewPath as string) || "");
+
+      // Load spawn mode and fixed locations
+      setSpawnMode((query.spawnMode as "fixed" | "zone" | "random") || "fixed");
+      if (query.fixedLocations) {
+        try {
+          const locations = JSON.parse(query.fixedLocations as string);
+          setFixedLocations(locations);
+        } catch (e) {
+          console.error("Failed to parse fixedLocations:", e);
+        }
+      }
+
       // Don't set previewImageUrl here - it will be set by the useStorageUrl hook above
 
       // Trigger map re-render with new coordinates
       setMapKey((prev) => prev + 1);
     }
   }, [isEditMode, query]);
+
+  // Load data when in duplicate mode (all fields except location)
+  useEffect(() => {
+    if (isDuplicateMode) {
+      setFormData({
+        name: (query.name as string) || "",
+        slug: (query.slug as string) || "",
+        category: (query.category as string) || "",
+        description: (query.description as string) || "",
+        latitude: DEFAULT_LOCATION.lat, // Reset to default location
+        longitude: DEFAULT_LOCATION.lng, // Reset to default location
+        catchRadius: parseInt(query.catchRadius as string) || 8,
+        revealRadius: parseInt(query.revealRadius as string) || 30,
+        rarity: (query.rarity as string) || "",
+        catchable_time: parseInt(query.catchable_time as string) || 100,
+        coin_value: parseFloat(query.coin_value as string) || 0.2,
+        point: parseInt(query.point as string) || 10,
+        status:
+          (query.status as "active" | "inactive" | "scheduled") || "active",
+        startTime: (query.startTime as string) || "",
+        endTime: (query.endTime as string) || "",
+        modelFile: null,
+        previewFile: null,
+      });
+
+      // Reuse existing model and preview files
+      setExistingModelPath((query.modelPath as string) || "");
+      setExistingPreviewPath((query.previewPath as string) || "");
+
+      // Trigger map re-render with default coordinates
+      setMapKey((prev) => prev + 1);
+    }
+  }, [isDuplicateMode, query]);
 
   // Update preview image URL when the storage URL is loaded
   useEffect(() => {
@@ -147,7 +200,7 @@ function AddARModel() {
       ...prev,
       [name]:
         e.target instanceof HTMLInputElement && e.target.type === "number"
-          ? parseFloat(value)
+          ? parseFloat(value) || 0
           : value,
     }));
   };
@@ -188,11 +241,64 @@ function AddARModel() {
   };
 
   const handleLocationChange = (lat: number, lng: number) => {
+    if (spawnMode === "fixed" && fixedLocations.length > 0) {
+      // Update the selected spawn location
+      const updated = [...fixedLocations];
+      updated[selectedLocationIndex] = {
+        ...updated[selectedLocationIndex],
+        latitude: lat,
+        longitude: lng,
+      };
+      setFixedLocations(updated);
+    } else {
+      // Update main/default location
+      setFormData((prev) => ({
+        ...prev,
+        latitude: lat,
+        longitude: lng,
+      }));
+    }
+  };
+
+  const handleAddSpawnLocation = () => {
+    const newLocation: SpawnLocation = {
+      latitude:
+        typeof formData.latitude === "string"
+          ? parseFloat(formData.latitude)
+          : formData.latitude,
+      longitude:
+        typeof formData.longitude === "string"
+          ? parseFloat(formData.longitude)
+          : formData.longitude,
+      name: `Spawn Point ${fixedLocations.length + 1}`,
+    };
+    setFixedLocations([...fixedLocations, newLocation]);
+    setSelectedLocationIndex(fixedLocations.length);
+  };
+
+  const handleRemoveSpawnLocation = (index: number) => {
+    const updated = fixedLocations.filter((_, i) => i !== index);
+    setFixedLocations(updated);
+    if (selectedLocationIndex >= updated.length) {
+      setSelectedLocationIndex(Math.max(0, updated.length - 1));
+    }
+  };
+
+  const handleLocationNameChange = (index: number, name: string) => {
+    const updated = [...fixedLocations];
+    updated[index] = { ...updated[index], name };
+    setFixedLocations(updated);
+  };
+
+  const handleSelectLocation = (index: number) => {
+    setSelectedLocationIndex(index);
+    const location = fixedLocations[index];
     setFormData((prev) => ({
       ...prev,
-      latitude: lat,
-      longitude: lng,
+      latitude: location.latitude,
+      longitude: location.longitude,
     }));
+    setMapKey((prev) => prev + 1);
   };
 
   const uploadFile = async (file: File, path: string): Promise<string> => {
@@ -273,6 +379,28 @@ function AddARModel() {
         console.log("Preview uploaded to:", previewPathValue);
       }
 
+      // Auto-calculate status based on time fields
+      let calculatedStatus: "active" | "inactive" | "scheduled";
+      const now = new Date();
+      const startTime = formData.startTime
+        ? new Date(formData.startTime)
+        : null;
+      const endTime = formData.endTime ? new Date(formData.endTime) : null;
+
+      if (startTime || endTime) {
+        // Has time constraints
+        if (startTime && now < startTime) {
+          calculatedStatus = "scheduled"; // Not started yet
+        } else if (endTime && now > endTime) {
+          calculatedStatus = "inactive"; // Ended
+        } else {
+          calculatedStatus = "active"; // Currently within time range
+        }
+      } else {
+        // No time constraints - always active
+        calculatedStatus = "active";
+      }
+
       const modelData: Omit<ARSpawnData, "id" | "createdAt" | "updatedAt"> = {
         name: formData.name,
         slug: formData.slug,
@@ -280,17 +408,26 @@ function AddARModel() {
         description: formData.description,
         modelPath: modelPathValue,
         previewPath: previewPathValue,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
+        latitude:
+          typeof formData.latitude === "string"
+            ? parseFloat(formData.latitude)
+            : formData.latitude,
+        longitude:
+          typeof formData.longitude === "string"
+            ? parseFloat(formData.longitude)
+            : formData.longitude,
+        spawnMode: spawnMode,
+        ...(fixedLocations.length > 0 && { fixedLocations }),
         catchRadius: formData.catchRadius,
         revealRadius: formData.revealRadius,
         rarity: formData.rarity,
         catchable_time: formData.catchable_time,
         coin_value: formData.coin_value,
         point: formData.point,
-        isActive: formData.isActive,
-        startTime: formData.startTime || undefined,
-        endTime: formData.endTime || undefined,
+        status: calculatedStatus,
+        isActive: calculatedStatus === "active",
+        ...(formData.startTime && { startTime: formData.startTime }),
+        ...(formData.endTime && { endTime: formData.endTime }),
       };
 
       if (isEditMode && query.id) {
@@ -437,22 +574,6 @@ function AddARModel() {
                       placeholder="Enter a description of the AR model..."
                     />
                   </div>
-
-                  {/* Active Status */}
-                  <div className="md:col-span-3">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="isActive"
-                        checked={formData.isActive}
-                        onChange={handleCheckboxChange}
-                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                      />
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Active (visible to users)
-                      </span>
-                    </label>
-                  </div>
                 </div>
               </div>
 
@@ -559,7 +680,11 @@ function AddARModel() {
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                   Set when this AR model should be available for users to catch.
-                  Leave empty for always available.
+                  Status is auto-determined: <strong>Scheduled</strong> (before
+                  start time),
+                  <strong>Active</strong> (within time range or always if no
+                  times set),
+                  <strong>Inactive</strong> (after end time).
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -610,12 +735,12 @@ function AddARModel() {
                         Latitude *
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         name="latitude"
                         value={formData.latitude}
                         onChange={handleInputChange}
-                        step="0.000001"
                         required
+                        placeholder="e.g., 13.6135451"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>
@@ -624,27 +749,133 @@ function AddARModel() {
                         Longitude *
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         name="longitude"
                         value={formData.longitude}
                         onChange={handleInputChange}
-                        step="0.000001"
                         required
+                        placeholder="e.g., 100.8430599"
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       />
                     </div>
                   </div>
 
+                  {/* Multiple Spawn Locations Management */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Spawn Locations ({fixedLocations.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddSpawnLocation}
+                        className="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                        Add Location
+                      </button>
+                    </div>
+
+                    {fixedLocations.length > 0 && (
+                      <div className="space-y-2 max-h-60 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+                        {fixedLocations.map((location, index) => (
+                          <div
+                            key={index}
+                            className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
+                              selectedLocationIndex === index
+                                ? "bg-purple-100 dark:bg-purple-900/30 ring-2 ring-purple-500"
+                                : "bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleSelectLocation(index)}
+                              className="flex-1 text-left"
+                            >
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                {location.name || `Spawn Point ${index + 1}`}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {location.latitude.toFixed(6)},{" "}
+                                {location.longitude.toFixed(6)}
+                              </div>
+                            </button>
+                            <input
+                              type="text"
+                              value={location.name || ""}
+                              onChange={(e) =>
+                                handleLocationNameChange(index, e.target.value)
+                              }
+                              placeholder={`Location ${index + 1}`}
+                              className="w-32 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSpawnLocation(index)}
+                              className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                              title="Remove location"
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {fixedLocations.length === 0 && (
+                      <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                        No spawn locations added yet. Click "Add Location" to
+                        add the first spawn point, or use the single location
+                        below.
+                      </div>
+                    )}
+                  </div>
+
                   <div className="rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
                     <MapPicker
                       key={mapKey}
-                      latitude={formData.latitude}
-                      longitude={formData.longitude}
+                      latitude={
+                        typeof formData.latitude === "string"
+                          ? parseFloat(formData.latitude) || 0
+                          : formData.latitude
+                      }
+                      longitude={
+                        typeof formData.longitude === "string"
+                          ? parseFloat(formData.longitude) || 0
+                          : formData.longitude
+                      }
                       onLocationChange={handleLocationChange}
                     />
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Click on the map to set the spawn location
+                    {fixedLocations.length > 0
+                      ? `Click on the map to update the selected spawn location (${fixedLocations[selectedLocationIndex]?.name || `Spawn Point ${selectedLocationIndex + 1}`})`
+                      : "Click on the map to set the spawn location (single spawn point)"}
                   </p>
                 </div>
               </div>

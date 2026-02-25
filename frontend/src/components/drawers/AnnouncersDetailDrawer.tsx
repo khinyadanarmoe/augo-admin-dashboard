@@ -1,6 +1,7 @@
-import React from "react";
-import { Announcer } from "@/types/export";
+import React, { useState, useEffect } from "react";
+import { Announcer, Announcement } from "@/types/export";
 import { useStorageUrl } from "@/lib/storageUtils";
+import { fetchAnnouncements } from "@/lib/firestore/announcements";
 
 interface AnnouncerDetailDrawerProps {
   announcer: Announcer | null;
@@ -17,50 +18,85 @@ export default function AnnouncersDetailDrawer({
   onStatusToggle,
   onEdit,
 }: AnnouncerDetailDrawerProps) {
+  const [recentAnnouncements, setRecentAnnouncements] = useState<
+    Announcement[]
+  >([]);
+  const [activeAnnouncementsCount, setActiveAnnouncementsCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  // Load profile picture from Firebase Storage (must be before conditional return)
+  const { url: profileUrl } = useStorageUrl(announcer?.profilePicture || "");
+
   if (!isOpen || !announcer) return null;
 
-  // Load profile picture from Firebase Storage
-  const { url: profileUrl } = useStorageUrl(announcer.profilePicture || "");
+  // Fetch announcer's announcements
+  useEffect(() => {
+    const loadAnnouncerAnnouncements = async () => {
+      if (!announcer?.id) return;
 
-  // Mock data for demonstration - in real app, this would come from props or API
-  const mockAnnouncerProfile = {
-    totalAnnouncements: announcer.total_announcements,
-    activeAnnouncements: Math.floor(announcer.total_announcements * 0.7),
-    joinDate: announcer.joined_date,
-    email: announcer.email,
-    role: "Public Relations Officer",
-    recentAnnouncements: [
-      {
-        id: 1,
-        title: "Student Registration for Spring 2025",
-        content:
-          "Registration for Spring semester will begin on January 15, 2025. Please prepare your documents in advance.",
-        category: "Academic",
-        postedDate: "2 days ago",
-        views: 245,
-        engagements: 18,
-      },
-      {
-        id: 2,
-        title: "Campus Safety Reminder",
-        content:
-          "Please remember to carry your student ID at all times and report any suspicious activities to security.",
-        category: "Safety",
-        postedDate: "5 days ago",
-        views: 189,
-        engagements: 12,
-      },
-      {
-        id: 3,
-        title: "Library Extended Hours",
-        content:
-          "The library will extend its hours during finals week. Open 24/7 from December 10-20.",
-        category: "Facility",
-        postedDate: "1 week ago",
-        views: 156,
-        engagements: 8,
-      },
-    ],
+      setLoading(true);
+      try {
+        const allAnnouncements = await fetchAnnouncements();
+
+        // Filter announcements by this announcer
+        const announcerAnnouncements = allAnnouncements.filter(
+          (announcement) => announcement.createdByUID === announcer.id,
+        );
+
+        // Get active announcements count
+        const activeCount = announcerAnnouncements.filter(
+          (announcement) =>
+            announcement.status === "active" ||
+            announcement.status === "scheduled",
+        ).length;
+        setActiveAnnouncementsCount(activeCount);
+
+        // Get recent 3 announcements sorted by submission date
+        const recentThree = announcerAnnouncements
+          .sort((a, b) => {
+            const dateA = new Date(a.submittedAt || a.startDate).getTime();
+            const dateB = new Date(b.submittedAt || b.startDate).getTime();
+            return dateB - dateA;
+          })
+          .slice(0, 3);
+
+        setRecentAnnouncements(recentThree);
+      } catch (error) {
+        console.error("Error loading announcer's announcements:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isOpen && announcer) {
+      loadAnnouncerAnnouncements();
+    }
+  }, [announcer, isOpen]);
+
+  const formatRelativeTime = (dateString: string | Date) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInMinutes = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60),
+    );
+
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60)
+      return `${diffInMinutes} minute${diffInMinutes > 1 ? "s" : ""} ago`;
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24)
+      return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7)
+      return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
+
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks < 4)
+      return `${diffInWeeks} week${diffInWeeks > 1 ? "s" : ""} ago`;
+
+    return date.toLocaleDateString();
   };
 
   const getStatusColor = (status: string) => {
@@ -73,23 +109,12 @@ export default function AnnouncersDetailDrawer({
         return "bg-yellow-100 text-yellow-800";
       case "suspended":
         return "bg-red-100 text-red-800";
+      case "scheduled":
+        return "bg-blue-100 text-blue-800";
+      case "expired":
+        return "bg-gray-100 text-gray-600";
       default:
         return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getCategoryIndicator = (category: string) => {
-    switch (category) {
-      case "Academic":
-        return "bg-blue-500";
-      case "Safety":
-        return "bg-red-500";
-      case "Facility":
-        return "bg-green-500";
-      case "Event":
-        return "bg-purple-500";
-      default:
-        return "bg-gray-500";
     }
   };
 
@@ -174,9 +199,7 @@ export default function AnnouncersDetailDrawer({
                     Join Date:
                   </span>
                   <span className="text-gray-900 dark:text-white">
-                    {new Date(
-                      mockAnnouncerProfile.joinDate,
-                    ).toLocaleDateString()}
+                    {new Date(announcer.joined_date).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -184,7 +207,7 @@ export default function AnnouncersDetailDrawer({
                     Email:
                   </span>
                   <span className="text-gray-900 dark:text-white text-right truncate max-w-50">
-                    {mockAnnouncerProfile.email}
+                    {announcer.email}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -239,7 +262,7 @@ export default function AnnouncersDetailDrawer({
           <div className="grid grid-cols-2 gap-3 mb-6">
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {mockAnnouncerProfile.totalAnnouncements}
+                {announcer.total_announcements}
               </div>
               <div className="text-sm text-blue-600 dark:text-blue-400">
                 Total Announcements
@@ -247,7 +270,7 @@ export default function AnnouncersDetailDrawer({
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {mockAnnouncerProfile.activeAnnouncements}
+                {activeAnnouncementsCount}
               </div>
               <div className="text-sm text-green-600 dark:text-green-400">
                 Active Announcements
@@ -261,14 +284,20 @@ export default function AnnouncersDetailDrawer({
               <h4 className="text-lg font-semibold text-purple-600 dark:text-purple-400">
                 Recent Announcements
               </h4>
-              {mockAnnouncerProfile.recentAnnouncements.length > 0 && (
+              {recentAnnouncements.length > 0 && (
                 <span className="text-sm text-purple-600 dark:text-purple-400">
-                  {mockAnnouncerProfile.recentAnnouncements.length} recent
+                  {recentAnnouncements.length} recent
                 </span>
               )}
             </div>
 
-            {mockAnnouncerProfile.recentAnnouncements.length === 0 ? (
+            {loading ? (
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 text-center">
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  Loading announcements...
+                </p>
+              </div>
+            ) : recentAnnouncements.length === 0 ? (
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 text-center">
                 <p className="text-gray-500 dark:text-gray-400 text-sm">
                   No recent announcements found.
@@ -276,52 +305,56 @@ export default function AnnouncersDetailDrawer({
               </div>
             ) : (
               <div className="space-y-3">
-                {mockAnnouncerProfile.recentAnnouncements.map(
-                  (announcement) => (
-                    <div
-                      key={announcement.id}
-                      className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4"
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div
-                          className={`w-3 h-3 ${getCategoryIndicator(announcement.category)} rounded-full mt-2`}
-                        ></div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                              {announcement.category}
-                            </span>
-                          </div>
-                          <h5 className="font-medium text-gray-900 dark:text-white text-sm mb-1">
-                            {announcement.title}
-                          </h5>
-                          <p className="text-gray-700 dark:text-gray-300 text-sm mb-3">
-                            {announcement.content}
+                {recentAnnouncements.map((announcement) => (
+                  <div
+                    key={announcement.id}
+                    className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {announcement.department}
+                          </span>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(announcement.status)}`}
+                          >
+                            {announcement.status}
+                          </span>
+                        </div>
+                        <h5 className="font-medium text-gray-900 dark:text-white text-sm mb-1">
+                          {announcement.title}
+                        </h5>
+                        {announcement.body && (
+                          <p className="text-gray-700 dark:text-gray-300 text-sm mb-3 line-clamp-2">
+                            {announcement.body}
                           </p>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              Posted {announcement.postedDate}
-                            </span>
-                            <div className="flex items-center space-x-3">
-                              <div className="flex items-center space-x-1">
-                                <span className="text-purple-600">👁️</span>
-                                <span className="text-sm text-gray-900 dark:text-white">
-                                  {announcement.views}
-                                </span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <span className="text-blue-600">💬</span>
-                                <span className="text-sm text-gray-900 dark:text-white">
-                                  {announcement.engagements}
-                                </span>
-                              </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatRelativeTime(
+                              announcement.submittedAt ||
+                                announcement.startDate,
+                            )}
+                          </span>
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center space-x-1">
+                              <span className="text-purple-600">👁️</span>
+                              <span className="text-sm text-gray-900 dark:text-white">
+                                {announcement.views || 0}
+                              </span>
                             </div>
+                            {announcement.isUrgent && (
+                              <span className="text-red-500 text-xs font-medium">
+                                Urgent
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
                     </div>
-                  ),
-                )}
+                  </div>
+                ))}
               </div>
             )}
           </div>

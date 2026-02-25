@@ -51,28 +51,32 @@ export const incrementUserWarningCount = async (userId: string): Promise<void> =
 };
 
 /**
- * Update user status
+ * Update user status (supports active, warning, suspended, banned)
  */
-export const updateUserStatus = async (userId: string, status: string, banDurationDays: number = 30): Promise<void> => {
+export const updateUserStatus = async (userId: string, status: string, suspendDurationDays: number = 30): Promise<void> => {
   try {
     const userRef = doc(db, 'users', userId);
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: status,
       lastStatusUpdate: new Date().toISOString()
     };
 
-    // If banning user, set ban timestamps with configurable duration
-    if (status === 'banned') {
-      const bannedAt = new Date();
-      const banExpiresAt = new Date();
-      banExpiresAt.setDate(banExpiresAt.getDate() + banDurationDays);
+    // If suspending user, set suspend timestamps and increment suspend count
+    if (status === 'suspended') {
+      const suspendedAt = new Date();
+      const suspendExpiresAt = new Date();
+      suspendExpiresAt.setDate(suspendExpiresAt.getDate() + suspendDurationDays);
 
-      updateData.bannedAt = bannedAt.toISOString();
-      updateData.banExpiresAt = banExpiresAt.toISOString();
-    } else {
-      // If unbanning, clear ban timestamps
-      updateData.bannedAt = null;
-      updateData.banExpiresAt = null;
+      updateData.suspendedAt = suspendedAt.toISOString();
+      updateData.suspendExpiresAt = suspendExpiresAt.toISOString();
+      updateData.suspendCount = increment(1);
+    } else if (status === 'banned') {
+      // Permanent ban - set bannedAt timestamp
+      updateData.bannedAt = new Date().toISOString();
+    } else if (status === 'active') {
+      // Clear suspend timestamps when unsuspending, keep suspend count for history
+      updateData.suspendedAt = null;
+      updateData.suspendExpiresAt = null;
     }
 
     await updateDoc(userRef, updateData);
@@ -80,5 +84,22 @@ export const updateUserStatus = async (userId: string, status: string, banDurati
   } catch (error) {
     console.error('Error updating user status:', error);
     throw new Error('Failed to update user status');
+  }
+};
+
+/**
+ * Get user's current suspend count
+ */
+export const getUserSuspendCount = async (userId: string): Promise<number> => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      return userSnap.data().suspendCount || 0;
+    }
+    return 0;
+  } catch (error) {
+    console.error('Error getting suspend count:', error);
+    return 0;
   }
 };

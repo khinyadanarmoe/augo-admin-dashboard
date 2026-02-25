@@ -15,6 +15,12 @@ import { db } from '../firebase';
 
 const AR_SPAWNS_COLLECTION = 'ar_spawns';
 
+export interface SpawnLocation {
+  latitude: number;
+  longitude: number;
+  name?: string; // Optional name for this spawn point (e.g., "Library", "Cafeteria")
+}
+
 export interface ARSpawnData {
   id?: string;
   name: string;
@@ -23,15 +29,20 @@ export interface ARSpawnData {
   description: string;
   modelPath: string;
   previewPath: string;
+  // Legacy single location (for backward compatibility)
   latitude: number;
   longitude: number;
+  // New multi-location support
+  spawnMode: 'fixed' | 'zone' | 'random'; // Default: 'fixed'
+  fixedLocations?: SpawnLocation[]; // Array of spawn points for fixed mode
   catchRadius: number;
   revealRadius: number;
   rarity: string;
   catchable_time: number;
   coin_value: number;
   point: number;
-  isActive: boolean;
+  status: 'active' | 'inactive' | 'scheduled';
+  isActive: boolean; // Derived from status: true if status === 'active'
   startTime?: string; // ISO 8601 datetime string for when AR model becomes available
   endTime?: string;   // ISO 8601 datetime string for when AR model stops being available
   createdAt?: any;
@@ -128,18 +139,19 @@ export async function deleteARSpawn(id: string): Promise<void> {
 }
 
 /**
- * Toggle AR spawn active status
+ * Update AR spawn status
  */
-export async function toggleARSpawnStatus(id: string, isActive: boolean): Promise<void> {
+export async function updateARSpawnStatus(id: string, status: 'active' | 'inactive' | 'scheduled'): Promise<void> {
   try {
     const docRef = doc(db, AR_SPAWNS_COLLECTION, id);
     await updateDoc(docRef, {
-      isActive,
+      status,
+      isActive: status === 'active',
       updatedAt: Timestamp.now(),
     });
-    console.log('AR spawn status toggled:', id, isActive);
+    console.log('AR spawn status updated:', id, status);
   } catch (error) {
-    console.error('Error toggling AR spawn status:', error);
+    console.error('Error updating AR spawn status:', error);
     throw error;
   }
 }
@@ -156,7 +168,7 @@ export async function fetchActiveARSpawnsNearLocation(
     // Note: For production, consider using geohashing or Firebase GeoPoint queries
     // This is a simple implementation that fetches all active spawns
     const arSpawnsRef = collection(db, AR_SPAWNS_COLLECTION);
-    const q = query(arSpawnsRef, where('isActive', '==', true));
+    const q = query(arSpawnsRef, where('status', '==', 'active'));
     const querySnapshot = await getDocs(q);
 
     const spawns = querySnapshot.docs.map(doc => ({

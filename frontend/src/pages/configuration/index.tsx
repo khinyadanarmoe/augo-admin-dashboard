@@ -33,8 +33,9 @@ function Configuration() {
     dailyFreeCoin: 10,
     maxActiveAnnouncements: 3,
     urgentAnnouncementThreshold: 48,
-    banThreshold: 5,
-    banDurationDays: 30,
+    suspendThreshold: 5,
+    suspendDurationDays: 30,
+    banAfterSuspendCount: 3,
   });
 
   // Load configuration on component mount
@@ -55,8 +56,9 @@ function Configuration() {
           maxActiveAnnouncements: configuration.maxActiveAnnouncements || 3,
           urgentAnnouncementThreshold:
             configuration.urgentAnnouncementThreshold || 48,
-          banThreshold: configuration.banThreshold || 5,
-          banDurationDays: configuration.banDurationDays || 30,
+          suspendThreshold: configuration.suspendThreshold || 5,
+          suspendDurationDays: configuration.suspendDurationDays || 30,
+          banAfterSuspendCount: configuration.banAfterSuspendCount || 3,
         });
       } catch (err: any) {
         console.error("Error loading configuration:", err);
@@ -77,8 +79,9 @@ function Configuration() {
           dailyFreeCoin: 10,
           maxActiveAnnouncements: 3,
           urgentAnnouncementThreshold: 48,
-          banThreshold: 5,
-          banDurationDays: 30,
+          suspendThreshold: 5,
+          suspendDurationDays: 30,
+          banAfterSuspendCount: 3,
         });
       } finally {
         setLoading(false);
@@ -102,8 +105,9 @@ function Configuration() {
             maxActiveAnnouncements: updatedConfig.maxActiveAnnouncements || 3,
             urgentAnnouncementThreshold:
               updatedConfig.urgentAnnouncementThreshold || 48,
-            banThreshold: updatedConfig.banThreshold || 5,
-            banDurationDays: updatedConfig.banDurationDays || 30,
+            suspendThreshold: updatedConfig.suspendThreshold || 5,
+            suspendDurationDays: updatedConfig.suspendDurationDays || 30,
+            banAfterSuspendCount: updatedConfig.banAfterSuspendCount || 3,
           });
         }
       },
@@ -190,8 +194,9 @@ function Configuration() {
       dailyFreeCoin: 10,
       maxActiveAnnouncements: 3,
       urgentAnnouncementThreshold: 48,
-      banThreshold: 5,
-      banDurationDays: 30,
+      suspendThreshold: 5,
+      suspendDurationDays: 30,
+      banAfterSuspendCount: 3,
     });
     setValidationErrors([]);
     setError("");
@@ -547,63 +552,102 @@ function Configuration() {
                     </svg>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Auto-Ban Threshold
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="50"
-                      value={formData.banThreshold}
-                      onChange={(e) =>
-                        updateFormField("banThreshold", Number(e.target.value))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Users exceeding this warning count will be automatically
-                      banned (cannot post, can only view)
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Auto-Suspend Threshold
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={formData.suspendThreshold}
+                        onChange={(e) =>
+                          updateFormField(
+                            "suspendThreshold",
+                            Number(e.target.value),
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Users exceeding this warning count will be automatically
+                        suspended (cannot post, can only view)
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Suspend Duration (Days)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={formData.suspendDurationDays}
+                        onChange={(e) =>
+                          updateFormField(
+                            "suspendDurationDays",
+                            Number(e.target.value),
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        How long a suspended user stays suspended before they
+                        can post again
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 w-full">
+                    <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                      Auto-Suspend Rule
+                    </p>
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                      When a user reaches{" "}
+                      <span className="font-bold">
+                        {formData.suspendThreshold}
+                      </span>{" "}
+                      warnings, they are automatically suspended for{" "}
+                      <span className="font-bold">
+                        {formData.suspendDurationDays}
+                      </span>{" "}
+                      days. Suspended users can still use the app but cannot
+                      create posts.
                     </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Ban Duration (Days)
+                      Auto Ban Threshold
                     </label>
                     <input
                       type="number"
                       min="1"
-                      max="365"
-                      value={formData.banDurationDays}
+                      max="10"
+                      value={formData.banAfterSuspendCount}
                       onChange={(e) =>
                         updateFormField(
-                          "banDurationDays",
+                          "banAfterSuspendCount",
                           Number(e.target.value),
                         )
                       }
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
                     />
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      How long a banned user stays suspended before they can
-                      post again
+                      Number of suspensions before permanent ban (cannot login)
                     </p>
                   </div>
-                </div>
-                <div className="mt-4">
                   <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 w-full">
                     <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                      Auto-Ban Rule
+                      Permanent Ban Rule
                     </p>
                     <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                      When a user reaches{" "}
-                      <span className="font-bold">{formData.banThreshold}</span>{" "}
-                      warnings, they are automatically banned for{" "}
+                      When a user has been suspended{" "}
                       <span className="font-bold">
-                        {formData.banDurationDays}
+                        {formData.banAfterSuspendCount}
                       </span>{" "}
-                      days. Banned users can still use the app but cannot create
-                      posts.
+                      times, they are permanently banned and will not be able to
+                      login with this account.
                     </p>
                   </div>
                 </div>

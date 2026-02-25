@@ -61,6 +61,7 @@ export interface FlaggedUser {
   id: string;
   name: string;
   warningCount: number;
+  isSuspended: boolean;
   isBanned: boolean;
   flaggedAt: string;
   flaggedAtTimestamp: number;
@@ -510,20 +511,20 @@ async function fetchTopLocations(): Promise<LocationData[]> {
 
 async function fetchRecentFlaggedUsers(): Promise<FlaggedUser[]> {
   try {
-    // Get ban threshold from config (default 5)
-    let banThreshold = 5;
+    // Get suspend threshold from config (default 5)
+    let suspendThreshold = 5;
     try {
       const configRef = doc(db, 'admin_configuration', 'default');
       const configSnap = await getDoc(configRef);
       if (configSnap.exists()) {
-        banThreshold = configSnap.data().banThreshold || 5;
+        suspendThreshold = configSnap.data().suspendThreshold || configSnap.data().banThreshold || 5;
       }
     } catch { /* use default */ }
 
-    // Get all users whose warningCount >= banThreshold (auto-banned users)
+    // Get all users whose warningCount >= suspendThreshold (auto-suspended/banned users)
     const usersQuery = query(
       collection(db, 'users'),
-      where('warningCount', '>=', banThreshold)
+      where('warningCount', '>=', suspendThreshold)
     );
 
     const snapshot = await getDocs(usersQuery);
@@ -531,8 +532,8 @@ async function fetchRecentFlaggedUsers(): Promise<FlaggedUser[]> {
     return snapshot.docs.map(doc => {
       const data = doc.data();
 
-      // Use lastWarningDate or bannedAt or any available timestamp
-      const timestamp = data.bannedAt || data.lastWarningDate || data.updatedAt;
+      // Use lastWarningDate or suspendedAt or bannedAt or any available timestamp
+      const timestamp = data.suspendedAt || data.bannedAt || data.lastWarningDate || data.updatedAt;
       const flaggedDate = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp || Date.now());
 
       // Format: "10 Nov 2026, 11:00 PM"
@@ -549,7 +550,8 @@ async function fetchRecentFlaggedUsers(): Promise<FlaggedUser[]> {
         id: doc.id,
         name: data.displayName || data.name || data.nickname || 'Unknown User',
         warningCount: data.warningCount || 0,
-        isBanned: (data.warningCount || 0) >= banThreshold,
+        isSuspended: data.status === 'suspended',
+        isBanned: data.status === 'banned',
         flaggedAt,
         flaggedAtTimestamp: flaggedDate.getTime()
       };

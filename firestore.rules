@@ -7,7 +7,9 @@ service cloud.firestore {
     }
     
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null 
+        && (!exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status != "banned");
     }
     
     function isAUEmail() {
@@ -18,26 +20,50 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
+    function isReactionCountUpdateOnly() {
+  		return isAUEmail()
+    	&& request.resource.data.diff(resource.data).changedKeys().hasOnly(["likeCount", "dislikeCount"])
+    	&& request.resource.data.likeCount is int
+    	&& request.resource.data.dislikeCount is int
+    	&& request.resource.data.likeCount >= 0
+    	&& request.resource.data.dislikeCount >= 0
+    	&& (request.resource.data.likeCount - resource.data.likeCount) >= -1
+    	&& (request.resource.data.likeCount - resource.data.likeCount) <= 1
+    	&& (request.resource.data.dislikeCount - resource.data.dislikeCount) >= -1
+    	&& (request.resource.data.dislikeCount - resource.data.dislikeCount) <= 1;
+		}
+    
+    function isReportCountUpdateOnly() {
+      return isAUEmail()
+      && request.resource.data.diff(resource.data).changedKeys().hasOnly(["reportCount"])
+      && request.resource.data.reportCount is int
+      && request.resource.data.reportCount >= 0
+      && (request.resource.data.reportCount - resource.data.reportCount) == 1;
+    }
+
     // Helper function to check if user is announcer
     function isAnnouncer() {
       return isSignedIn() && request.auth.token.announcer == true;
     }
     
-    match /users/{userId} {
-      allow read: if isAUEmail() || isAdmin();
-      allow create: if isAUEmail() && isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if false;
-    }
+		match /users/{userId} {
+  		allow read: if (request.auth != null && request.auth.uid == userId) || isAUEmail() || isAdmin();
+  		allow create: if request.auth != null && request.auth.token.email.matches('.*@au[.]edu$') && request.auth.uid == userId;
+  		allow update: if isOwner(userId) || isAdmin();
+  		allow delete: if false;
+		}
     
-    match /posts/{postId} {
-      allow read: if isAUEmail() || isAnnouncer() || isAdmin();
-      allow create: if isAUEmail() 
-        && request.resource.data.userId == request.auth.uid 
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status != "banned";
-      allow update: if isAUEmail() && resource.data.userId == request.auth.uid || isAdmin();
-      allow delete: if isAUEmail() && resource.data.userId == request.auth.uid || isAdmin();
-    }
+		match /posts/{postId} {
+  		allow read: if isSignedIn();
+  		allow create: if isAUEmail() 
+        && request.resource.data.userId == request.auth.uid
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status != "suspended";
+  		allow update: if isAdmin()
+                		|| (isAUEmail() && resource.data.userId == request.auth.uid)
+                		|| isReactionCountUpdateOnly()
+                		|| isReportCountUpdateOnly();
+  		allow delete: if isAdmin() || (isAUEmail() && resource.data.userId == request.auth.uid);
+		}
     
     match /reports/{reportId} {
       allow create: if isAUEmail();
@@ -46,10 +72,17 @@ service cloud.firestore {
     
     match /announcements/{announcementId} {
       // Use custom claim instead of exists() for better performance
-    	allow read, create, update: if isAdmin() || isAnnouncer();
+      allow read: if isSignedIn();
+    	allow read, create, update: if isAdmin() || isAnnouncer() || isAUEmail();
       allow delete: if isAdmin();
     }
     
+		match /announcement_reactions/{reactionId} {
+  		allow read: if isSignedIn();
+  		allow create, update, delete: if isSignedIn()
+    	&& reactionId.matches('^' + request.auth.uid + '_.*$');
+		}
+
     match /user_reactions/{reactionId} {
   		allow read: if isAUEmail() || isAnnouncer() || isAdmin();
   		allow create, update: if isAUEmail() && reactionId.matches('^' + request.auth.uid + '_.*$');
@@ -57,6 +90,7 @@ service cloud.firestore {
 		}
 
     match /admin_configuration/{document=**} {
+      allow read: if request.auth != null; // or your AU-email rule
   		allow read, write: if isAdmin();
 		}
 

@@ -18,7 +18,7 @@ interface UserDetailDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onWarn?: (userId: string) => void;
-  onBanToggle?: (userId: string, currentStatus: string) => void;
+  onSuspendToggle?: (userId: string, currentStatus: string) => void;
 }
 
 export default function UserDetailDrawer({
@@ -26,7 +26,7 @@ export default function UserDetailDrawer({
   isOpen,
   onClose,
   onWarn,
-  onBanToggle,
+  onSuspendToggle,
 }: UserDetailDrawerProps) {
   const [showPostsDrawer, setShowPostsDrawer] = useState(false);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
@@ -54,6 +54,25 @@ export default function UserDetailDrawer({
 
       for (const doc of postsSnapshot.docs) {
         const data = doc.data();
+
+        // Handle Firestore Timestamp conversion
+        let postDate = new Date().toISOString();
+        if (data.date) {
+          if (data.date.toDate) {
+            // Firestore Timestamp object
+            postDate = data.date.toDate().toISOString();
+          } else if (typeof data.date === "string") {
+            // Already a string
+            postDate = data.date;
+          }
+        } else if (data.postDate) {
+          if (data.postDate.toDate) {
+            postDate = data.postDate.toDate().toISOString();
+          } else if (typeof data.postDate === "string") {
+            postDate = data.postDate;
+          }
+        }
+
         const post: Post = {
           id: doc.id,
           content: data.content || "",
@@ -62,7 +81,7 @@ export default function UserDetailDrawer({
             name: user?.name || "Unknown User",
             avatar: user?.avatar,
           },
-          postDate: data.date || data.postDate || new Date().toISOString(),
+          postDate: postDate,
           category: data.category || "General",
           location: data.location || "Campus",
           likes: data.likeCount || data.likes || 0,
@@ -120,8 +139,14 @@ export default function UserDetailDrawer({
 
   // Helper function to format relative time
   const formatRelativeTime = (dateString: string) => {
+    if (!dateString) return "Invalid Date";
+
     const now = new Date();
     const date = new Date(dateString);
+
+    // Check if date is valid
+    if (isNaN(date.getTime())) return "Invalid Date";
+
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -289,16 +314,16 @@ export default function UserDetailDrawer({
             </div>
           </div>
 
-          {/* Ban Status Alert */}
-          {user.status === USER_STATUS.BANNED && user.banExpiresAt && (
-            <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <h4 className="text-red-800 dark:text-red-300 font-semibold mb-2">
-                ⚠️ Account Suspended
+          {/* Suspend Status Alert */}
+          {user.status === USER_STATUS.SUSPENDED && user.suspendExpiresAt && (
+            <div className="mb-6 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+              <h4 className="text-orange-800 dark:text-orange-300 font-semibold mb-2">
+                ⏸️ Account Suspended
               </h4>
-              <p className="text-sm text-red-700 dark:text-red-400 mb-1">
+              <p className="text-sm text-orange-700 dark:text-orange-400 mb-1">
                 This user is suspended until{" "}
                 <strong>
-                  {new Date(user.banExpiresAt).toLocaleDateString("en-US", {
+                  {new Date(user.suspendExpiresAt).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
@@ -306,20 +331,45 @@ export default function UserDetailDrawer({
                 </strong>
                 .
               </p>
-              <p className="text-sm text-red-700 dark:text-red-400">
+              <p className="text-sm text-orange-700 dark:text-orange-400">
                 Time remaining:{" "}
                 <strong>
                   {Math.max(
                     0,
                     Math.ceil(
-                      (new Date(user.banExpiresAt).getTime() -
+                      (new Date(user.suspendExpiresAt).getTime() -
                         new Date().getTime()) /
                         (1000 * 60 * 60 * 24),
                     ),
                   )}
                 </strong>{" "}
-                days
+                days | Suspend count: <strong>{user.suspendCount || 1}</strong>
               </p>
+            </div>
+          )}
+
+          {/* Ban Status Alert */}
+          {user.status === USER_STATUS.BANNED && (
+            <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <h4 className="text-red-800 dark:text-red-300 font-semibold mb-2">
+                🚫 Account Permanently Banned
+              </h4>
+              <p className="text-sm text-red-700 dark:text-red-400">
+                This user has been permanently banned and can no longer login to
+                this account.
+              </p>
+              {user.bannedAt && (
+                <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                  Banned on:{" "}
+                  <strong>
+                    {new Date(user.bannedAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </strong>
+                </p>
+              )}
             </div>
           )}
 
@@ -414,22 +464,28 @@ export default function UserDetailDrawer({
               </button>
             )}
 
-            {onBanToggle &&
-              (user.status === USER_STATUS.BANNED ? (
+            {onSuspendToggle &&
+              user.status !== USER_STATUS.BANNED &&
+              (user.status === USER_STATUS.SUSPENDED ? (
                 <button
-                  onClick={() => onBanToggle(user.id, user.status)}
+                  onClick={() => onSuspendToggle(user.id, user.status)}
                   className={`w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium ${ActionColors.unban}`}
                 >
-                  Unban User
+                  Unsuspend User
                 </button>
               ) : (
                 <button
-                  onClick={() => onBanToggle(user.id, user.status)}
-                  className={`w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium ${ActionColors.ban}`}
+                  onClick={() => onSuspendToggle(user.id, user.status)}
+                  className="w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 hover:bg-orange-200 dark:hover:bg-orange-800"
                 >
-                  Ban User
+                  Suspend User
                 </button>
               ))}
+            {user.status === USER_STATUS.BANNED && (
+              <div className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-center">
+                Permanently Banned
+              </div>
+            )}
           </div>
         </div>
       </div>

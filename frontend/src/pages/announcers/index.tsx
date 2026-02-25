@@ -1,6 +1,7 @@
 import React from "react";
 import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
+import NotificationBell from "@/components/NotificationBell";
 import AnnouncerTable from "@/components/tables/AnnouncerTable";
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 
@@ -8,7 +9,7 @@ function Announcers() {
   const router = useRouter();
 
   const handleAddAnnouncer = () => {
-    router.push('/announcers/add');
+    router.push("/announcers/add");
   };
 
   return (
@@ -18,21 +19,37 @@ function Announcers() {
 
         {/* Main content */}
         <main className="flex-1 p-6 min-h-full ml-4">
-          <div className="flex items-center justify-between mb-8">
-            <header>
+          <header className="flex items-center justify-between mb-8">
+            <div>
               <h1 className="text-3xl font-bold">Announcers Management</h1>
-              <p className="mt-2 text-zinc-600 dark:text-zinc-400">Create, edit, and manage announcers with full search and filter capabilities</p>
-            </header>
-            <button
-              onClick={handleAddAnnouncer}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <span>Add New Announcer</span>
-            </button>
-          </div>
+              <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+                Create, edit, and manage announcers with full search and filter
+                capabilities
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleAddAnnouncer}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+                <span>Add New Announcer</span>
+              </button>
+              <NotificationBell className="group" />
+            </div>
+          </header>
 
           <AnnouncerTable />
         </main>
