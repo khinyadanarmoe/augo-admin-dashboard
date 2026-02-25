@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Post, POST_STATUS, POST_CATEGORIES, LOCATIONS } from "@/types/export";
+import { Post, POST_STATUS, POST_CATEGORIES } from "@/types/export";
 import PostDetailDrawer from "../drawers/PostDetailDrawer";
 import SendNotificationModal from "@/components/SendNotificationModal";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -34,7 +34,6 @@ export default function PostTable({
   const [user] = useAuthState(auth);
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [dateFilter, setDateFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sortBy, setSortBy] = useState<
@@ -134,8 +133,6 @@ export default function PostTable({
       const idMatch = post.id.toLowerCase().includes(searchLower);
       const postDate = new Date(post.postDate).toISOString().split("T")[0];
       const dateMatch = dateFilter === "" || postDate === dateFilter;
-      const locationMatch =
-        locationFilter === "" || post.location === locationFilter;
       const categoryMatch =
         categoryFilter === "" || post.category === categoryFilter;
       const statusMatch = statusFilter === "" || post.status === statusFilter;
@@ -143,7 +140,6 @@ export default function PostTable({
       return (
         (contentMatch || userMatch || idMatch) &&
         dateMatch &&
-        locationMatch &&
         categoryMatch &&
         statusMatch
       );
@@ -384,7 +380,7 @@ export default function PostTable({
             </svg>
             <input
               type="text"
-              placeholder="Search posts..."
+              placeholder="Search by content, or author..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -392,7 +388,7 @@ export default function PostTable({
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <input
               type="date"
               value={dateFilter}
@@ -400,17 +396,6 @@ export default function PostTable({
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               placeholder="Filter by date"
             />
-
-            <select
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="">All Locations</option>
-              <option value="Yangon">Yangon</option>
-              <option value="Mandalay">Mandalay</option>
-              <option value="Naypyitaw">Naypyitaw</option>
-            </select>
 
             <select
               value={categoryFilter}
