@@ -680,11 +680,6 @@ function AddARModel() {
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                   Set when this AR model should be available for users to catch.
-                  Status is auto-determined: <strong>Scheduled</strong> (before
-                  start time),
-                  <strong>Active</strong> (within time range or always if no
-                  times set),
-                  <strong>Inactive</strong> (after end time).
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

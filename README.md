@@ -238,7 +238,6 @@ node scripts/setAdmin.js <email>
 - `announcements` - Community announcements
 - `announcers` - Announcer accounts
 - `ar_spawns` - AR model spawn configurations
-- `ar_captures` - User AR interaction tracking
 - `admin_configuration` - System configuration
 - `configuration_logs` - Configuration change history
 - `admin_notifications` - Admin notification queue
@@ -268,11 +267,3 @@ node scripts/setAdmin.js <email>
 3. Test Firestore security rules before deployment
 4. Document new features in README
 5. Keep Cloud Functions lightweight and focused
-
-## License
-
-Proprietary - Assumption University
-
-## Support
-
-For issues or questions, contact the development team.
