@@ -8,13 +8,33 @@ import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 function Announcements() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [highlightAnnouncementId, setHighlightAnnouncementId] = useState<string | null>(null);
 
   // Handle query parameters
   useEffect(() => {
-    const { id } = router.query;
+    const { id, highlight, autoScroll } = router.query;
 
     if (id && typeof id === "string") {
       setSearchTerm(id);
+      setHighlightAnnouncementId(id);
+    }
+
+    if (highlight && typeof highlight === "string") {
+      setHighlightAnnouncementId(highlight);
+    }
+
+    if (autoScroll === "true" && (highlight || id)) {
+      // Scroll to the highlighted announcement after a brief delay
+      const scrollId = (highlight || id) as string;
+      setTimeout(() => {
+        const element = document.getElementById(`announcement-${scrollId}`);
+        if (element) {
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }, 1000); // Give time for table to render
     }
   }, [router.query]);
 
@@ -36,7 +56,10 @@ function Announcements() {
             <NotificationBell className="group" />
           </header>
 
-          <AnnouncementTable initialSearchTerm={searchTerm} />
+          <AnnouncementTable 
+            initialSearchTerm={searchTerm}
+            highlightAnnouncementId={highlightAnnouncementId}
+          />
         </main>
       </div>
     </div>

@@ -22,11 +22,13 @@ import {
 interface AnnouncementTableProps {
   announcements?: Announcement[];
   initialSearchTerm?: string;
+  highlightAnnouncementId?: string | null;
 }
 
 export default function AnnouncementTable({
   announcements,
   initialSearchTerm = "",
+  highlightAnnouncementId,
 }: AnnouncementTableProps) {
   const toast = useToast();
   const { isAuthenticated, isLoading } = useAdminAuth();
@@ -404,11 +406,20 @@ export default function AnnouncementTable({
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {paginatedAnnouncements.map((announcement) => (
-              <tr
-                key={announcement.id}
-                className="hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
+            {paginatedAnnouncements.map((announcement) => {
+              const isHighlighted =
+                highlightAnnouncementId && announcement.id === highlightAnnouncementId;
+
+              return (
+                <tr
+                  key={announcement.id}
+                  id={`announcement-${announcement.id}`}
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                    isHighlighted
+                      ? "bg-yellow-100 dark:bg-yellow-900/30 border-l-4 border-yellow-500"
+                      : ""
+                  }`}
+                >
                 <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white max-w-xs">
                   <div className="truncate">{announcement.title}</div>
                 </td>
@@ -486,7 +497,8 @@ export default function AnnouncementTable({
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

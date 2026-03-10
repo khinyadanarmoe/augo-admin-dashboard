@@ -147,7 +147,6 @@ export interface AdminConfiguration {
   postVisibilityDuration: number; // hours
   dailyFreePostLimit: number;
   reportThresholds: {
-    normal: number;
     warning: number;
     urgent: number;
   };

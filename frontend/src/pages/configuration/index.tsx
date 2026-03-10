@@ -25,7 +25,6 @@ function Configuration() {
     postVisibilityDuration: 24,
     dailyFreePostLimit: 3,
     reportThresholds: {
-      normal: 2,
       warning: 5,
       urgent: 10,
     },
@@ -71,7 +70,6 @@ function Configuration() {
           postVisibilityDuration: 24,
           dailyFreePostLimit: 3,
           reportThresholds: {
-            normal: 2,
             warning: 5,
             urgent: 10,
           },
@@ -186,7 +184,6 @@ function Configuration() {
       postVisibilityDuration: 24,
       dailyFreePostLimit: 3,
       reportThresholds: {
-        normal: 2,
         warning: 5,
         urgent: 10,
       },
@@ -469,25 +466,8 @@ function Configuration() {
                       />
                     </div>
                   </div>
+
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                      <span className="text-sm font-medium text-green-800 dark:text-green-200 flex-1">
-                        Normal
-                      </span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={formData.reportThresholds.normal}
-                        onChange={(e) =>
-                          updateFormField("reportThresholds", {
-                            ...formData.reportThresholds,
-                            normal: Number(e.target.value),
-                          })
-                        }
-                        className="w-20 px-2 py-1 text-sm border border-green-300 dark:border-green-600 rounded focus:ring-green-500 focus:border-green-500 dark:bg-green-900/50 dark:text-white"
-                      />
-                    </div>
                     <div className="flex items-center space-x-3 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
                       <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                       <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200 flex-1">
@@ -524,6 +504,10 @@ function Configuration() {
                         className="w-20 px-2 py-1 text-sm border-2 border-red-300 dark:border-red-600 rounded focus:ring-red-500 focus:border-red-500 dark:bg-red-900/50 dark:text-white font-medium"
                       />
                     </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Reports exceeding the urgent threshold will trigger
+                      automatic notifications to review the content.
+                    </p>
                   </div>
                 </div>
               </div>

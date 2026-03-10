@@ -22,7 +22,6 @@ export const DEFAULT_CONFIGURATION: Omit<AdminConfiguration, 'id' | 'lastUpdated
   postVisibilityDuration: 24,
   dailyFreePostLimit: 3,
   reportThresholds: {
-    normal: 2,
     warning: 5,
     urgent: 10
   },
@@ -293,12 +292,12 @@ export const validateConfiguration = (config: Partial<AdminConfiguration>): stri
   }
 
   if (config.reportThresholds !== undefined) {
-    const { normal, warning, urgent } = config.reportThresholds;
-    if (normal < 1 || warning < 1 || urgent < 1) {
+    const { warning, urgent } = config.reportThresholds;
+    if (warning < 1 || urgent < 1) {
       errors.push('All report thresholds must be at least 1');
     }
-    if (normal >= warning || warning >= urgent) {
-      errors.push('Report thresholds must be in ascending order: Normal < Warning < Urgent');
+    if (warning >= urgent) {
+      errors.push('Report thresholds must be in ascending order: Warning < Urgent');
     }
   }
 

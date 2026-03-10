@@ -76,24 +76,22 @@ export default function ReportTable({
   const getReportCountColor = (count: number) => {
     if (!config?.reportThresholds) {
       // Fallback to default values if config not loaded
-      return count > 10
+      return count >= 10
         ? "bg-red-500"
-        : count > 5
+        : count >= 5
           ? "bg-yellow-500"
           : "bg-green-500";
     }
 
-    const { normal, warning, urgent } = config.reportThresholds;
+    const { warning, urgent } = config.reportThresholds;
 
     // Color coding based on admin configuration thresholds
-    if (count > urgent) {
+    if (count >= urgent) {
       return "bg-red-500"; // Urgent (red)
-    } else if (count > warning) {
+    } else if (count >= warning) {
       return "bg-yellow-500"; // Warning (yellow)
-    } else if (count > normal) {
-      return "bg-orange-500"; // Normal threshold (orange)
     } else {
-      return "bg-green-500"; // Below normal threshold (green)
+      return "bg-green-500"; // Below warning threshold (green)
     }
   };
   // Helper function to safely format dates

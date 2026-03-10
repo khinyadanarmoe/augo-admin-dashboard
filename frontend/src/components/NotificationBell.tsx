@@ -183,8 +183,15 @@ export default function NotificationBell({
 
   const handleAnnouncementClick = (announcementId: string) => {
     setIsDropdownOpen(false);
-    // Navigate to announcements page
-    router.push("/announcements");
+    // Navigate to announcements page with announcement filter and highlight parameters
+    router.push({
+      pathname: "/announcements",
+      query: {
+        id: announcementId,
+        highlight: announcementId,
+        autoScroll: "true",
+      },
+    });
   };
 
   const getTimeUntilStart = (startDate: Date | string) => {
