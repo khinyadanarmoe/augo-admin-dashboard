@@ -115,6 +115,14 @@ service cloud.firestore {
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
     
+    match /announcement_notifications/{notificationId} {
+      // Allow announcers to read their own announcement notifications
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if isAdmin();
+      // Allow announcers to update their own notifications (mark as read)
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    
     match /announcers/{announcerId} {
     	allow read: if (isSignedIn() && request.auth.uid == announcerId) || isAdmin();
       allow write: if isAdmin();

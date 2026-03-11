@@ -23,6 +23,7 @@ import {
   resolveReportsByPostId,
 } from "@/lib/firestore/reports";
 import { sendWarningNotificationToUser } from "@/lib/firestore/notifications";
+import { sendTemporaryBan } from "@/lib/notifications";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { useAdminConfiguration } from "@/hooks/useAdminConfiguration";
@@ -222,6 +223,28 @@ export default function ReportDetailDrawer({
         newStatus,
         config?.suspendDurationDays || 30,
       );
+
+      // Send notification if suspending (not unsuspending)
+      if (newStatus === USER_STATUS.SUSPENDED) {
+        try {
+          const duration = config?.suspendDurationDays
+            ? `${config.suspendDurationDays} days`
+            : "30 days";
+          await sendTemporaryBan(
+            userId,
+            authUser?.uid || "admin",
+            duration,
+            "Manual suspension by admin",
+            report?.postId,
+          );
+          console.log(
+            `Temporary suspension notification sent to user ${userId}`,
+          );
+        } catch (error) {
+          console.error("Error sending suspension notification:", error);
+        }
+      }
+
       const updatedUser = await fetchUserById(userId);
       if (updatedUser) setSelectedUser(updatedUser);
     } catch (error) {

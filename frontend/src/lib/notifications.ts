@@ -10,6 +10,16 @@ export interface NotificationData {
   relatedPostId?: string;
 }
 
+export interface AnnouncementNotificationData {
+  userId: string;
+  adminId: string;
+  announcementId: string;
+  announcementTitle: string;
+  action: 'approved' | 'declined';
+  title: string;
+  message: string;
+}
+
 /**
  * Creates a user notification in Firestore
  * This will automatically trigger the Cloud Function to send push notification
@@ -31,6 +41,26 @@ export const createUserNotification = async (notificationData: NotificationData)
 };
 
 /**
+ * Creates an announcement notification in Firestore (separate collection)
+ * This will automatically trigger the Cloud Function to send push notification to announcers
+ */
+export const createAnnouncementNotification = async (notificationData: AnnouncementNotificationData): Promise<string> => {
+  try {
+    const docRef = await addDoc(collection(db, 'announcement_notifications'), {
+      ...notificationData,
+      createdAt: serverTimestamp(),
+      isRead: false,
+    });
+
+    console.log('Announcement notification created with ID:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating announcement notification:', error);
+    throw error;
+  }
+};
+
+/**
  * Send warning notification for community guideline violation
  */
 export const sendCommunityWarning = async (
@@ -40,7 +70,7 @@ export const sendCommunityWarning = async (
   customMessage?: string
 ): Promise<string> => {
   const defaultMessage = "A post you shared was reviewed by our admin team after being reported. We encourage you to review our community guidelines to help keep the community positive and respectful. Repeated violations may lead to temporary restrictions or permanent ban.";
-  
+
   return createUserNotification({
     userId,
     adminId,
@@ -62,7 +92,7 @@ export const sendTemporaryBan = async (
   relatedPostId?: string
 ): Promise<string> => {
   const message = `Your account has been temporarily restricted for ${banDuration} due to: ${reason}. You will not be able to post during this period. Please review our community guidelines to avoid future restrictions.`;
-  
+
   return createUserNotification({
     userId,
     adminId,
@@ -83,7 +113,7 @@ export const sendPermanentBan = async (
   relatedPostId?: string
 ): Promise<string> => {
   const message = `Your account has been permanently banned due to repeated violations of our community guidelines. Reason: ${reason}. This decision is final and your access to the platform has been revoked.`;
-  
+
   return createUserNotification({
     userId,
     adminId,

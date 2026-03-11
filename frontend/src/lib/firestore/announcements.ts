@@ -1,6 +1,7 @@
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, query, orderBy, onSnapshot, Unsubscribe, QuerySnapshot, DocumentData, where, limit } from 'firebase/firestore';
 import { Announcement } from '@/types';
+import { createAnnouncementNotification } from '../notifications';
 
 const ANNOUNCEMENTS_COLLECTION = 'announcements';
 
@@ -285,14 +286,48 @@ export const incrementAnnouncementDislikes = async (id: string): Promise<void> =
 
 /**
  * Approve an announcement and set it to scheduled status
+ * Automatically sends notification to the announcer (iOS user)
  */
 export const approveAnnouncement = async (id: string): Promise<void> => {
   try {
     const announcementDoc = doc(db, ANNOUNCEMENTS_COLLECTION, id);
+
+    // Get announcement data to retrieve announcer's user ID
+    const announcementSnap = await getDoc(announcementDoc);
+    if (!announcementSnap.exists()) {
+      throw new Error('Announcement not found');
+    }
+
+    const announcementData = announcementSnap.data();
+    const announcerUserId = announcementData.createdByUID;
+
+    // Update announcement status
     await updateDoc(announcementDoc, {
       status: 'scheduled',
       updatedAt: Timestamp.now()
     });
+
+    // Send notification to announcer
+    if (announcerUserId) {
+      try {
+        const adminId = auth.currentUser?.uid || 'admin';
+        const startDateStr = new Date(announcementData.startDate?.toDate ? announcementData.startDate.toDate() : announcementData.startDate).toLocaleDateString();
+
+        await createAnnouncementNotification({
+          userId: announcerUserId,
+          adminId: adminId,
+          announcementId: id,
+          announcementTitle: announcementData.title,
+          action: 'approved',
+          title: 'Announcement Approved! 🎉',
+          message: `Your announcement "${announcementData.title}" has been approved by the admin team and is now scheduled. It will be visible to users starting from ${startDateStr}.`,
+        });
+        console.log(`Approval notification sent to announcer ${announcerUserId}`);
+      } catch (notifError) {
+        console.error('Error sending approval notification:', notifError);
+        // Don't throw - approval succeeded even if notification failed
+      }
+    }
   } catch (error) {
     console.error('Error approving announcement:', error);
     throw error;
@@ -301,15 +336,47 @@ export const approveAnnouncement = async (id: string): Promise<void> => {
 
 /**
  * Decline an announcement
+ * Automatically sends notification to the announcer (iOS user)
  */
 export const declineAnnouncement = async (id: string): Promise<void> => {
   try {
     const announcementDoc = doc(db, ANNOUNCEMENTS_COLLECTION, id);
+
+    // Get announcement data to retrieve announcer's user ID
+    const announcementSnap = await getDoc(announcementDoc);
+    if (!announcementSnap.exists()) {
+      throw new Error('Announcement not found');
+    }
+
+    const announcementData = announcementSnap.data();
+    const announcerUserId = announcementData.createdByUID;
+
+    // Update announcement status
     await updateDoc(announcementDoc, {
       status: 'declined',
       rejectedAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     });
+
+    // Send notification to announcer
+    if (announcerUserId) {
+      try {
+        const adminId = auth.currentUser?.uid || 'admin';
+        await createAnnouncementNotification({
+          userId: announcerUserId,
+          adminId: adminId,
+          announcementId: id,
+          announcementTitle: announcementData.title,
+          action: 'declined',
+          title: 'Announcement Declined',
+          message: `Your announcement "${announcementData.title}" was reviewed and declined by the admin team. Please ensure your content follows community guidelines. You can submit a revised version if needed.`,
+        });
+        console.log(`Decline notification sent to announcer ${announcerUserId}`);
+      } catch (notifError) {
+        console.error('Error sending decline notification:', notifError);
+        // Don't throw - decline succeeded even if notification failed
+      }
+    }
   } catch (error) {
     console.error('Error declining announcement:', error);
     throw error;

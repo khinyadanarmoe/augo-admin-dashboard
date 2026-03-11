@@ -3,6 +3,7 @@ import { Post, POST_STATUS, USER_STATUS } from "@/types/export";
 import { User } from "@/types";
 import { useAdminConfiguration } from "@/hooks/useAdminConfiguration";
 import { sendWarningNotificationToUser } from "@/lib/firestore/notifications";
+import { sendTemporaryBan } from "@/lib/notifications";
 import {
   incrementUserWarningCount,
   fetchUserById,
@@ -352,6 +353,27 @@ export default function PostDetailDrawer({
         newStatus,
         config?.suspendDurationDays || 30,
       );
+
+      // Send notification if suspending (not unsuspending)
+      if (newStatus === USER_STATUS.SUSPENDED) {
+        try {
+          const duration = config?.suspendDurationDays
+            ? `${config.suspendDurationDays} days`
+            : "30 days";
+          await sendTemporaryBan(
+            userId,
+            user?.uid || "admin",
+            duration,
+            "Manual suspension by admin",
+            post?.id,
+          );
+          console.log(
+            `Temporary suspension notification sent to user ${userId}`,
+          );
+        } catch (error) {
+          console.error("Error sending suspension notification:", error);
+        }
+      }
 
       // Update selected user state to reflect changes
       const updatedUser = await fetchUserById(userId);

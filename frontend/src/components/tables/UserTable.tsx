@@ -10,6 +10,9 @@ import { resolveReportsByPostIds } from "@/lib/firestore/reports";
 import UserDetailDrawer from "../drawers/UserDetailDrawer";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useAdminConfiguration } from "@/hooks/useAdminConfiguration";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "@/lib/firebase";
+import { sendTemporaryBan, sendPermanentBan } from "@/lib/notifications";
 import {
   SortableTableHeader,
   RegularTableHeader,
@@ -38,6 +41,7 @@ export default function UserTable({
 }: UserTableProps) {
   const { isAuthenticated, isLoading } = useAdminAuth();
   const { config } = useAdminConfiguration();
+  const [user] = useAuthState(auth);
   const suspendThreshold = config?.suspendThreshold || 5;
   const banAfterSuspendCount = config?.banAfterSuspendCount || 3;
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
@@ -85,8 +89,21 @@ export default function UserTable({
           )
           .forEach((u) => {
             autoModerationPromises.push(
-              updateUserStatus(u.id, USER_STATUS.BANNED).then(() => {
+              updateUserStatus(u.id, USER_STATUS.BANNED).then(async () => {
                 u.status = USER_STATUS.BANNED as UserStatus;
+                // Send permanent ban notification
+                try {
+                  await sendPermanentBan(
+                    u.id,
+                    user?.uid || "admin",
+                    `Exceeded maximum suspension limit (${banAfterSuspendCount} suspensions)`,
+                  );
+                  console.log(
+                    `Permanent ban notification sent to user ${u.id}`,
+                  );
+                } catch (error) {
+                  console.error("Error sending ban notification:", error);
+                }
               }),
             );
           });
@@ -106,9 +123,29 @@ export default function UserTable({
                 u.id,
                 USER_STATUS.SUSPENDED,
                 config?.suspendDurationDays || 30,
-              ).then(() => {
+              ).then(async () => {
                 u.status = USER_STATUS.SUSPENDED as UserStatus;
                 u.suspendCount = (u.suspendCount || 0) + 1;
+                // Send temporary ban notification
+                try {
+                  const duration = config?.suspendDurationDays
+                    ? `${config.suspendDurationDays} days`
+                    : "30 days";
+                  await sendTemporaryBan(
+                    u.id,
+                    user?.uid || "admin",
+                    duration,
+                    `Exceeded warning limit (${suspendThreshold} warnings)`,
+                  );
+                  console.log(
+                    `Temporary suspension notification sent to user ${u.id}`,
+                  );
+                } catch (error) {
+                  console.error(
+                    "Error sending suspension notification:",
+                    error,
+                  );
+                }
               }),
             );
           });
@@ -250,6 +287,17 @@ export default function UserTable({
         if ((warnedUser.suspendCount || 0) >= banAfterSuspendCount) {
           await updateUserStatus(userId, USER_STATUS.BANNED);
           warnedUser.status = USER_STATUS.BANNED as UserStatus;
+          // Send permanent ban notification
+          try {
+            await sendPermanentBan(
+              userId,
+              user?.uid || "admin",
+              `Exceeded maximum suspension limit (${banAfterSuspendCount} suspensions)`,
+            );
+            console.log(`Permanent ban notification sent to user ${userId}`);
+          } catch (error) {
+            console.error("Error sending ban notification:", error);
+          }
         }
         // Then check if should be suspended (warningCount >= threshold)
         else if (
@@ -264,6 +312,23 @@ export default function UserTable({
           );
           warnedUser.status = USER_STATUS.SUSPENDED as UserStatus;
           warnedUser.suspendCount = (warnedUser.suspendCount || 0) + 1;
+          // Send temporary ban notification
+          try {
+            const duration = config?.suspendDurationDays
+              ? `${config.suspendDurationDays} days`
+              : "30 days";
+            await sendTemporaryBan(
+              userId,
+              user?.uid || "admin",
+              duration,
+              `Exceeded warning limit (${suspendThreshold} warnings)`,
+            );
+            console.log(
+              `Temporary suspension notification sent to user ${userId}`,
+            );
+          } catch (error) {
+            console.error("Error sending suspension notification:", error);
+          }
         }
         // Otherwise just set to warning
         else if (
@@ -316,6 +381,26 @@ export default function UserTable({
         newStatus,
         config?.suspendDurationDays || 30,
       );
+
+      // Send notification if suspending (not unsuspending)
+      if (newStatus === USER_STATUS.SUSPENDED) {
+        try {
+          const duration = config?.suspendDurationDays
+            ? `${config.suspendDurationDays} days`
+            : "30 days";
+          await sendTemporaryBan(
+            userId,
+            user?.uid || "admin",
+            duration,
+            "Manual suspension by admin",
+          );
+          console.log(
+            `Temporary suspension notification sent to user ${userId}`,
+          );
+        } catch (error) {
+          console.error("Error sending suspension notification:", error);
+        }
+      }
 
       setLoading(true);
       const updatedUsers = await fetchUsers();
