@@ -6,6 +6,7 @@ import {
   updateARSpawn,
   ARSpawnData,
   SpawnLocation,
+  calculateARSpawnStatus,
 } from "@/lib/firestore/arSpawns";
 import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 import { ref, uploadBytes } from "firebase/storage";
@@ -14,7 +15,6 @@ import { useStorageUrl } from "@/lib/storageUtils";
 import { AR_RARITY, RARITY_CATCHABLE_RANGES } from "@/types/constants";
 import dynamic from "next/dynamic";
 import { useToast } from "@/contexts/ToastContext";
-import { useAdminConfiguration } from "@/hooks/useAdminConfiguration";
 
 // Dynamically import map component to avoid SSR issues
 const MapPicker = dynamic(() => import("@/components/MapPicker"), {
@@ -55,8 +55,6 @@ function AddARModel() {
   const router = useRouter();
   const { query } = router;
   const toast = useToast();
-  const { config: adminConfig } = useAdminConfiguration();
-  const maxCoinReward = adminConfig?.maxCoinReward ?? 1;
   const isEditMode = query.edit === "true";
   const isDuplicateMode = query.duplicate === "true";
 
@@ -351,12 +349,6 @@ function AddARModel() {
         return;
       }
 
-      if (formData.coin_value > maxCoinReward) {
-        toast.error(`Coin value cannot be greater than ${maxCoinReward}`);
-        setIsLoading(false);
-        return;
-      }
-
       // In create mode, files are required
       if (!isEditMode && (!formData.modelFile || !formData.previewFile)) {
         toast.warning("Please upload both 3D model and preview image");
@@ -389,26 +381,10 @@ function AddARModel() {
       }
 
       // Auto-calculate status based on time fields
-      let calculatedStatus: "active" | "inactive" | "scheduled";
-      const now = new Date();
-      const startTime = formData.startTime
-        ? new Date(formData.startTime)
-        : null;
-      const endTime = formData.endTime ? new Date(formData.endTime) : null;
-
-      if (startTime || endTime) {
-        // Has time constraints
-        if (startTime && now < startTime) {
-          calculatedStatus = "scheduled"; // Not started yet
-        } else if (endTime && now > endTime) {
-          calculatedStatus = "inactive"; // Ended
-        } else {
-          calculatedStatus = "active"; // Currently within time range
-        }
-      } else {
-        // No time constraints - always active
-        calculatedStatus = "active";
-      }
+      const calculatedStatus = calculateARSpawnStatus(
+        formData.startTime || undefined,
+        formData.endTime || undefined,
+      );
 
       const modelData: Omit<ARSpawnData, "id" | "createdAt" | "updatedAt"> = {
         name: formData.name,
@@ -1022,13 +998,12 @@ function AddARModel() {
                       value={formData.coin_value}
                       onChange={handleInputChange}
                       min="0"
-                      max={maxCoinReward}
                       step="0.1"
                       required
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Coins earned when caught (max: {maxCoinReward})
+                      Coins earned when caught
                     </p>
                   </div>
                 </div>

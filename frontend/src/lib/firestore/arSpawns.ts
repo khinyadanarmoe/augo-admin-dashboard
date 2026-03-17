@@ -7,7 +7,6 @@ import {
   getDoc,
   deleteDoc,
   query,
-  where,
   orderBy,
   Timestamp
 } from 'firebase/firestore';
@@ -49,6 +48,81 @@ export interface ARSpawnData {
   updatedAt?: any;
 }
 
+export function calculateARSpawnStatus(
+  startTime?: string,
+  endTime?: string,
+  fallbackStatus: ARSpawnData['status'] = 'active',
+  now: Date = new Date()
+): ARSpawnData['status'] {
+  const parsedStartTime = startTime ? new Date(startTime) : null;
+  const parsedEndTime = endTime ? new Date(endTime) : null;
+
+  const hasValidStartTime =
+    parsedStartTime !== null && !Number.isNaN(parsedStartTime.getTime());
+  const hasValidEndTime =
+    parsedEndTime !== null && !Number.isNaN(parsedEndTime.getTime());
+
+  if (hasValidStartTime || hasValidEndTime) {
+    if (hasValidStartTime && now < parsedStartTime) {
+      return 'scheduled';
+    }
+
+    if (hasValidEndTime && now >= parsedEndTime) {
+      return 'inactive';
+    }
+
+    return 'active';
+  }
+
+  return fallbackStatus;
+}
+
+function normalizeARSpawnData(
+  id: string,
+  data: Omit<ARSpawnData, 'id'>,
+  now: Date
+): ARSpawnData {
+  const normalizedStatus = calculateARSpawnStatus(
+    data.startTime,
+    data.endTime,
+    data.status,
+    now
+  );
+
+  return {
+    id,
+    ...data,
+    status: normalizedStatus,
+    isActive: normalizedStatus === 'active',
+  } as ARSpawnData;
+}
+
+async function syncARSpawnStatusIfNeeded(
+  id: string,
+  storedData: Omit<ARSpawnData, 'id'>,
+  normalizedData: ARSpawnData
+): Promise<void> {
+  const storedStatus = storedData.status;
+  const storedIsActive = storedData.isActive;
+
+  if (
+    storedStatus === normalizedData.status &&
+    storedIsActive === normalizedData.isActive
+  ) {
+    return;
+  }
+
+  try {
+    await updateDoc(doc(db, AR_SPAWNS_COLLECTION, id), {
+      status: normalizedData.status,
+      isActive: normalizedData.isActive,
+      updatedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.warn('Error syncing AR spawn status:', id, error);
+  }
+}
+
 /**
  * Fetch all AR spawns
  */
@@ -57,11 +131,23 @@ export async function fetchARSpawns(): Promise<ARSpawnData[]> {
     const arSpawnsRef = collection(db, AR_SPAWNS_COLLECTION);
     const q = query(arSpawnsRef, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
+    const now = new Date();
+    const spawns = querySnapshot.docs.map((docSnapshot) => {
+      const rawData = docSnapshot.data() as Omit<ARSpawnData, 'id'>;
 
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as ARSpawnData[];
+      return {
+        rawData,
+        normalizedData: normalizeARSpawnData(docSnapshot.id, rawData, now),
+      };
+    });
+
+    await Promise.allSettled(
+      spawns.map(({ rawData, normalizedData }) =>
+        syncARSpawnStatusIfNeeded(normalizedData.id!, rawData, normalizedData)
+      )
+    );
+
+    return spawns.map(({ normalizedData }) => normalizedData);
   } catch (error) {
     console.error('Error fetching AR spawns:', error);
     throw error;
@@ -77,10 +163,12 @@ export async function fetchARSpawnById(id: string): Promise<ARSpawnData | null> 
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      return {
-        id: docSnap.id,
-        ...docSnap.data(),
-      } as ARSpawnData;
+      const rawData = docSnap.data() as Omit<ARSpawnData, 'id'>;
+      const normalizedData = normalizeARSpawnData(docSnap.id, rawData, new Date());
+
+      await syncARSpawnStatusIfNeeded(docSnap.id, rawData, normalizedData);
+
+      return normalizedData;
     }
     return null;
   } catch (error) {
@@ -165,27 +253,39 @@ export async function fetchActiveARSpawnsNearLocation(
   radiusInKm: number = 10
 ): Promise<ARSpawnData[]> {
   try {
-    // Note: For production, consider using geohashing or Firebase GeoPoint queries
-    // This is a simple implementation that fetches all active spawns
+    // Note: For production, consider using geohashing or Firebase GeoPoint queries.
+    // We fetch all spawns here because time-based status can become stale after create/edit.
     const arSpawnsRef = collection(db, AR_SPAWNS_COLLECTION);
-    const q = query(arSpawnsRef, where('status', '==', 'active'));
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await getDocs(arSpawnsRef);
+    const now = new Date();
+    const spawns = querySnapshot.docs.map((docSnapshot) => {
+      const rawData = docSnapshot.data() as Omit<ARSpawnData, 'id'>;
 
-    const spawns = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as ARSpawnData[];
+      return {
+        rawData,
+        normalizedData: normalizeARSpawnData(docSnapshot.id, rawData, now),
+      };
+    });
+
+    await Promise.allSettled(
+      spawns.map(({ rawData, normalizedData }) =>
+        syncARSpawnStatusIfNeeded(normalizedData.id!, rawData, normalizedData)
+      )
+    );
 
     // Filter by distance (simple implementation)
-    return spawns.filter(spawn => {
-      const distance = calculateDistance(
-        latitude,
-        longitude,
-        spawn.latitude,
-        spawn.longitude
-      );
-      return distance <= radiusInKm;
-    });
+    return spawns
+      .map(({ normalizedData }) => normalizedData)
+      .filter((spawn) => spawn.status === 'active')
+      .filter(spawn => {
+        const distance = calculateDistance(
+          latitude,
+          longitude,
+          spawn.latitude,
+          spawn.longitude
+        );
+        return distance <= radiusInKm;
+      });
   } catch (error) {
     console.error('Error fetching nearby AR spawns:', error);
     throw error;
