@@ -119,24 +119,11 @@ export default function NotificationBell({
         const upcoming = announcements.filter((announcement) => {
           const startDate = new Date(announcement.startDate);
           const isPending = announcement.status === "pending";
-          const isAfterNow = startDate > now;
+          // Include if pending AND (start already passed OR starts within threshold window)
+          const isOverdue = startDate <= now;
           const isWithinThreshold = startDate <= thresholdTime;
 
-          // Debug logging
-          console.log("Checking announcement:", {
-            id: announcement.id,
-            title: announcement.title,
-            status: announcement.status,
-            startDate: startDate.toISOString(),
-            now: now.toISOString(),
-            thresholdTime: thresholdTime.toISOString(),
-            isPending,
-            isAfterNow,
-            isWithinThreshold,
-            shouldInclude: isPending && isAfterNow && isWithinThreshold,
-          });
-
-          return isPending && isAfterNow && isWithinThreshold;
+          return isPending && (isOverdue || isWithinThreshold);
         });
 
         setUpcomingAnnouncements(upcoming);
@@ -194,18 +181,29 @@ export default function NotificationBell({
     });
   };
 
-  const getTimeUntilStart = (startDate: Date | string) => {
+  const getTimeUntilStart = (
+    startDate: Date | string,
+  ): { label: string; overdue: boolean } => {
     const now = new Date();
     const start = new Date(startDate);
-    const diffInMinutes = Math.floor(
-      (start.getTime() - now.getTime()) / (1000 * 60),
-    );
+    const diffMs = start.getTime() - now.getTime();
+    const absDiffInMinutes = Math.floor(Math.abs(diffMs) / (1000 * 60));
+    const overdue = diffMs < 0;
 
-    if (diffInMinutes < 60) return `${diffInMinutes} minutes`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24)
-      return `${diffInHours} hour${diffInHours > 1 ? "s" : ""}`;
-    return `${Math.floor(diffInHours / 24)} day${Math.floor(diffInHours / 24) > 1 ? "s" : ""}`;
+    let timeStr: string;
+    if (absDiffInMinutes < 60)
+      timeStr = `${absDiffInMinutes} minute${absDiffInMinutes !== 1 ? "s" : ""}`;
+    else {
+      const absDiffInHours = Math.floor(absDiffInMinutes / 60);
+      if (absDiffInHours < 24)
+        timeStr = `${absDiffInHours} hour${absDiffInHours !== 1 ? "s" : ""}`;
+      else {
+        const absDiffInDays = Math.floor(absDiffInHours / 24);
+        timeStr = `${absDiffInDays} day${absDiffInDays !== 1 ? "s" : ""}`;
+      }
+    }
+
+    return { label: timeStr, overdue };
   };
 
   return (
@@ -275,39 +273,56 @@ export default function NotificationBell({
               </div>
             ) : (
               <>
-                {/* Upcoming Announcements */}
-                {upcomingAnnouncements.map((announcement) => (
-                  <div
-                    key={`announcement-${announcement.id}`}
-                    className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className="shrink-0 mt-1">📢</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          Upcoming Announcement
+                {/* Pending Announcements (upcoming or overdue) */}
+                {upcomingAnnouncements.map((announcement) => {
+                  const { label: timeLabel, overdue } = getTimeUntilStart(
+                    announcement.startDate,
+                  );
+                  return (
+                    <div
+                      key={`announcement-${announcement.id}`}
+                      className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="shrink-0 mt-1">
+                          {overdue ? "🚨" : "📢"}
                         </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                          {announcement.title}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                          Starts in {getTimeUntilStart(announcement.startDate)}{" "}
-                          • {announcement.department}
-                        </div>
-                        <div className="mt-2">
-                          <button
-                            onClick={() =>
-                              handleAnnouncementClick(announcement.id)
-                            }
-                            className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800 rounded-full transition-colors"
+                        <div className="flex-1 min-w-0">
+                          <div
+                            className={`text-sm font-medium ${overdue ? "text-red-600 dark:text-red-400" : "text-gray-900 dark:text-white"}`}
                           >
-                            View
-                          </button>
+                            {overdue
+                              ? "Overdue Announcement"
+                              : "Upcoming Announcement"}
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                            {announcement.title}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                            {overdue
+                              ? `Started ${timeLabel} ago`
+                              : `Starts in ${timeLabel}`}{" "}
+                            • {announcement.department}
+                          </div>
+                          <div className="mt-2">
+                            <button
+                              onClick={() =>
+                                handleAnnouncementClick(announcement.id)
+                              }
+                              className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                                overdue
+                                  ? "text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800"
+                                  : "text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                              }`}
+                            >
+                              {overdue ? "Review Now" : "View"}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Urgent Posts */}
                 {urgentPosts.map((post) => (

@@ -152,6 +152,7 @@ export interface AdminConfiguration {
   };
   emojiPinPrice: number;
   dailyFreeCoin: number;
+  maxCoinReward: number; // maximum coin reward allowed for a single AR model catch
   maxActiveAnnouncements: number;
   urgentAnnouncementThreshold: number; // hours before startDate to show in notification
   suspendThreshold: number; // warning count threshold for automatic suspend

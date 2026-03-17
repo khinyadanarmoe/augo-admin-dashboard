@@ -27,6 +27,7 @@ export const DEFAULT_CONFIGURATION: Omit<AdminConfiguration, 'id' | 'lastUpdated
   },
   emojiPinPrice: 10,
   dailyFreeCoin: 10,
+  maxCoinReward: 1,
   maxActiveAnnouncements: 3,
   urgentAnnouncementThreshold: 48,
   suspendThreshold: 5,
@@ -53,6 +54,7 @@ export const getAdminConfiguration = async (): Promise<AdminConfiguration> => {
         reportThresholds: data.reportThresholds || DEFAULT_CONFIGURATION.reportThresholds,
         emojiPinPrice: data.emojiPinPrice || DEFAULT_CONFIGURATION.emojiPinPrice,
         dailyFreeCoin: data.dailyFreeCoin || DEFAULT_CONFIGURATION.dailyFreeCoin,
+        maxCoinReward: data.maxCoinReward ?? DEFAULT_CONFIGURATION.maxCoinReward,
         maxActiveAnnouncements: data.maxActiveAnnouncements || DEFAULT_CONFIGURATION.maxActiveAnnouncements,
         urgentAnnouncementThreshold: data.urgentAnnouncementThreshold || DEFAULT_CONFIGURATION.urgentAnnouncementThreshold,
         suspendThreshold: data.suspendThreshold || data.banThreshold || DEFAULT_CONFIGURATION.suspendThreshold,
@@ -62,9 +64,9 @@ export const getAdminConfiguration = async (): Promise<AdminConfiguration> => {
         updatedBy: data.updatedBy || 'migration'
       };
 
-      // If the document had old structure, update it to the new structure
-      if (data.adminInterfaceSettings) {
-        console.log('Migrating configuration document to remove adminInterfaceSettings...');
+      // If the document had old structure or missing newly added fields, backfill it
+      if (data.adminInterfaceSettings || data.maxCoinReward === undefined) {
+        console.log('Migrating configuration document to latest schema...');
         await setDoc(configRef, cleanedData);
       }
 
@@ -304,6 +306,12 @@ export const validateConfiguration = (config: Partial<AdminConfiguration>): stri
   if (config.emojiPinPrice !== undefined) {
     if (config.emojiPinPrice < 0.01 || config.emojiPinPrice > 99.99) {
       errors.push('Emoji pin price must be between $0.01 and $99.99');
+    }
+  }
+
+  if (config.maxCoinReward !== undefined) {
+    if (config.maxCoinReward < 1) {
+      errors.push('Max coin reward must be at least 1 coin');
     }
   }
 

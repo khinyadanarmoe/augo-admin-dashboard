@@ -1,5 +1,5 @@
-import { 
-  collection, 
+import {
+  collection,
   addDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -35,7 +35,7 @@ export const sendWarningNotificationToUser = async (
       isRead: false,
       createdAt: new Date().toISOString(),
       relatedPostId: postId,
-      adminId
+      ...(adminId !== undefined ? { adminId } : {}),
     };
 
     await addDoc(collection(db, USER_NOTIFICATIONS_COLLECTION), notification);
@@ -65,8 +65,8 @@ export const sendNotificationToUser = async (
       message,
       isRead: false,
       createdAt: new Date().toISOString(),
-      adminId,
-      relatedPostId
+      ...(adminId !== undefined ? { adminId } : {}),
+      ...(relatedPostId !== undefined ? { relatedPostId } : {}),
     };
 
     await addDoc(collection(db, USER_NOTIFICATIONS_COLLECTION), notification);

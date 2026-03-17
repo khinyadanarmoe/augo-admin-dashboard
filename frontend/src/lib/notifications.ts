@@ -27,7 +27,12 @@ export interface AnnouncementNotificationData {
 export const createUserNotification = async (notificationData: NotificationData): Promise<string> => {
   try {
     const docRef = await addDoc(collection(db, 'user_notifications'), {
-      ...notificationData,
+      userId: notificationData.userId,
+      adminId: notificationData.adminId,
+      type: notificationData.type,
+      title: notificationData.title,
+      message: notificationData.message,
+      ...(notificationData.relatedPostId !== undefined ? { relatedPostId: notificationData.relatedPostId } : {}),
       createdAt: serverTimestamp(),
       isRead: false,
     });

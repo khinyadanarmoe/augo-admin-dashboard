@@ -30,6 +30,7 @@ function Configuration() {
     },
     emojiPinPrice: 0.99,
     dailyFreeCoin: 10,
+    maxCoinReward: 1,
     maxActiveAnnouncements: 3,
     urgentAnnouncementThreshold: 48,
     suspendThreshold: 5,
@@ -52,6 +53,7 @@ function Configuration() {
           reportThresholds: configuration.reportThresholds,
           emojiPinPrice: configuration.emojiPinPrice,
           dailyFreeCoin: configuration.dailyFreeCoin || 10,
+          maxCoinReward: configuration.maxCoinReward || 1,
           maxActiveAnnouncements: configuration.maxActiveAnnouncements || 3,
           urgentAnnouncementThreshold:
             configuration.urgentAnnouncementThreshold || 48,
@@ -75,6 +77,7 @@ function Configuration() {
           },
           emojiPinPrice: 10,
           dailyFreeCoin: 10,
+          maxCoinReward: 1,
           maxActiveAnnouncements: 3,
           urgentAnnouncementThreshold: 48,
           suspendThreshold: 5,
@@ -100,6 +103,7 @@ function Configuration() {
             reportThresholds: updatedConfig.reportThresholds,
             emojiPinPrice: updatedConfig.emojiPinPrice,
             dailyFreeCoin: updatedConfig.dailyFreeCoin || 10,
+            maxCoinReward: updatedConfig.maxCoinReward || 1,
             maxActiveAnnouncements: updatedConfig.maxActiveAnnouncements || 3,
             urgentAnnouncementThreshold:
               updatedConfig.urgentAnnouncementThreshold || 48,
@@ -189,6 +193,7 @@ function Configuration() {
       },
       emojiPinPrice: 0.99,
       dailyFreeCoin: 10,
+      maxCoinReward: 1,
       maxActiveAnnouncements: 3,
       urgentAnnouncementThreshold: 48,
       suspendThreshold: 5,
@@ -336,7 +341,7 @@ function Configuration() {
                     </svg>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Daily Free Coins
@@ -355,6 +360,7 @@ function Configuration() {
                       Number of coins students receive daily for free
                     </p>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Emoji Pin Cost (Coins)
@@ -704,6 +710,25 @@ function Configuration() {
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       Show pending announcements in notification bell if
                       starting within this time
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Max Coin Reward
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={formData.maxCoinReward}
+                      onChange={(e) =>
+                        updateFormField("maxCoinReward", Number(e.target.value))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Maximum coin reward allowed per Announcements
                     </p>
                   </div>
                 </div>

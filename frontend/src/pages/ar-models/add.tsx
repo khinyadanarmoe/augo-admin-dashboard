@@ -14,6 +14,7 @@ import { useStorageUrl } from "@/lib/storageUtils";
 import { AR_RARITY, RARITY_CATCHABLE_RANGES } from "@/types/constants";
 import dynamic from "next/dynamic";
 import { useToast } from "@/contexts/ToastContext";
+import { useAdminConfiguration } from "@/hooks/useAdminConfiguration";
 
 // Dynamically import map component to avoid SSR issues
 const MapPicker = dynamic(() => import("@/components/MapPicker"), {
@@ -54,6 +55,8 @@ function AddARModel() {
   const router = useRouter();
   const { query } = router;
   const toast = useToast();
+  const { config: adminConfig } = useAdminConfiguration();
+  const maxCoinReward = adminConfig?.maxCoinReward ?? 1;
   const isEditMode = query.edit === "true";
   const isDuplicateMode = query.duplicate === "true";
 
@@ -344,6 +347,12 @@ function AddARModel() {
         toast.error(
           `Catchable time must be between ${rarityRange.min} and ${rarityRange.max} for ${formData.rarity} rarity`,
         );
+        setIsLoading(false);
+        return;
+      }
+
+      if (formData.coin_value > maxCoinReward) {
+        toast.error(`Coin value cannot be greater than ${maxCoinReward}`);
         setIsLoading(false);
         return;
       }
@@ -1013,12 +1022,13 @@ function AddARModel() {
                       value={formData.coin_value}
                       onChange={handleInputChange}
                       min="0"
+                      max={maxCoinReward}
                       step="0.1"
                       required
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     />
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Coins earned when caught
+                      Coins earned when caught (max: {maxCoinReward})
                     </p>
                   </div>
                 </div>

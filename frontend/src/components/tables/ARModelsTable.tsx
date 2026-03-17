@@ -37,12 +37,12 @@ function ARModelRow({
   // Get rarity text color based on rarity type (no background)
   const getRarityColor = (rarity: string) => {
     const rarityColors: Record<string, string> = {
-      "Ultra Rare": "text-cyan-600 dark:text-cyan-400",
+      Mythic: "text-red-600 dark:text-red-400",
+      Legendary: "text-yellow-600 dark:text-yellow-400",
+      Epic: "text-purple-600 dark:text-purple-400",
       Rare: "text-blue-600 dark:text-blue-400",
       Uncommon: "text-green-600 dark:text-green-400",
-      Common: "text-pink-600 dark:text-pink-400",
-      "Very Common": "text-red-600 dark:text-red-400",
-      Unlimited: "text-gray-600 dark:text-gray-400",
+      Common: "text-gray-600 dark:text-gray-400",
     };
     return rarityColors[rarity] || "text-gray-600 dark:text-gray-400";
   };
