@@ -84,6 +84,29 @@ export const CATEGORY_LABELS: Record<ReportCategory, string> = {
   [REPORT_CATEGORIES.OTHER]: 'Other'
 };
 
+// Backward-compatible aliases for category values coming from older/mobile clients
+export const REPORT_CATEGORY_ALIASES: Record<string, ReportCategory> = {
+  threat: REPORT_CATEGORIES.THREATS_VIOLENCE,
+  violence: REPORT_CATEGORIES.THREATS_VIOLENCE,
+  threat_violence: REPORT_CATEGORIES.THREATS_VIOLENCE,
+  threat_and_violence: REPORT_CATEGORIES.THREATS_VIOLENCE,
+  threats_and_violence: REPORT_CATEGORIES.THREATS_VIOLENCE,
+  inappropriate_content: REPORT_CATEGORIES.NUDITY,
+};
+
+export const normalizeReportCategory = (category?: string): string => {
+  if (!category) return '';
+
+  const normalized = category
+    .trim()
+    .toLowerCase()
+    .replace(/[\s/&-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+
+  return REPORT_CATEGORY_ALIASES[normalized] || normalized;
+};
+
 // Report status
 export const REPORT_STATUS = {
   PENDING: 'pending',

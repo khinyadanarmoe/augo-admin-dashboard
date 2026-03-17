@@ -1,5 +1,6 @@
-import { db, auth } from '../firebase';
+import { db, auth, functions } from '../firebase';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, Timestamp, query, orderBy, onSnapshot, Unsubscribe, QuerySnapshot, DocumentData, where, limit } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { Announcement } from '@/types';
 import { createAnnouncementNotification } from '../notifications';
 
@@ -201,15 +202,31 @@ export const fetchAnnouncementById = async (id: string): Promise<Announcement | 
  */
 export const addAnnouncement = async (data: NewAnnouncementData): Promise<string> => {
   try {
+    const createAnnouncementFn = httpsCallable(functions, 'createAnnouncement');
+
+    // Prepare data for Cloud Function
     const announcementData = {
-      ...data,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
+      title: data.title,
+      department: data.department,
+      body: data.body,
+      startDate: data.startDate instanceof Date ? data.startDate.toISOString() : data.startDate,
+      endDate: data.endDate instanceof Date ? data.endDate.toISOString() : data.endDate,
+      status: data.status,
+      link: data.link,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      isUrgent: data.isUrgent
     };
 
-    const docRef = await addDoc(collection(db, ANNOUNCEMENTS_COLLECTION), announcementData);
-    return docRef.id;
-  } catch (error) {
+    const result = await createAnnouncementFn(announcementData);
+    const resultData = result.data as { success: boolean; announcementId: string; message: string };
+
+    if (!resultData.success) {
+      throw new Error(resultData.message || 'Failed to create announcement');
+    }
+
+    return resultData.announcementId;
+  } catch (error: any) {
     console.error('Error adding announcement:', error);
     throw error;
   }

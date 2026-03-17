@@ -124,3 +124,89 @@ export const expireEndedAnnouncements = functions.pubsub
             throw error;
         }
     });
+
+/**
+ * Creates an announcement and verifies the announcer is active
+ * Prevents inactive announcers from creating announcements
+ */
+export const createAnnouncement = functions.https.onCall(async (data: any, context) => {
+    try {
+        // ✅ Verify caller is authenticated
+        if (!context.auth) {
+            throw new functions.https.HttpsError(
+                "unauthenticated",
+                "User must be authenticated to create an announcement"
+            );
+        }
+
+        const announcerId = context.auth.uid;
+
+        functions.logger.info(`Creating announcement for announcer: ${announcerId}`);
+
+        // ✅ Check if announcer exists and is active
+        const announcerDoc = await admin.firestore()
+            .collection("announcers")
+            .doc(announcerId)
+            .get();
+
+        if (!announcerDoc.exists) {
+            throw new functions.https.HttpsError(
+                "not-found",
+                "Announcer profile not found"
+            );
+        }
+
+        const announcerData = announcerDoc.data();
+
+        if (!announcerData) {
+            throw new functions.https.HttpsError(
+                "not-found",
+                "Announcer data is missing"
+            );
+        }
+
+        // Check if announcer status is active
+        if (announcerData.status !== "active") {
+            throw new functions.https.HttpsError(
+                "permission-denied",
+                "Your announcer account has been deactivated. You cannot create new announcements. Please contact an administrator."
+            );
+        }
+
+        functions.logger.info(`Announcer ${announcerId} is active, creating announcement`);
+
+        // ✅ Create the announcement
+        const announcementData = {
+            ...data,
+            createdByUID: announcerId,
+            createdByName: announcerData.name || "Unknown",
+            createdByEmail: announcerData.email || "unknown@example.com",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        const docRef = await admin.firestore()
+            .collection("announcements")
+            .add(announcementData);
+
+        functions.logger.info(`Announcement created successfully: ${docRef.id}`);
+
+        return {
+            success: true,
+            announcementId: docRef.id,
+            message: "Announcement created successfully"
+        };
+
+    } catch (error: any) {
+        functions.logger.error("Error creating announcement:", error);
+
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+
+        throw new functions.https.HttpsError(
+            "internal",
+            `Failed to create announcement: ${error.message}`
+        );
+    }
+});

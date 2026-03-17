@@ -4,7 +4,10 @@ import { Announcer, AFFILIATION_TYPES, ANNOUNCER_STATUS } from "@/types/export";
 import type { AnnouncerStatus } from "@/types/constants";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import AnnouncerDetailDrawer from "../drawers/AnnouncersDetailDrawer";
-import { fetchAnnouncers } from "@/lib/firestore/announcers";
+import {
+  fetchAnnouncers,
+  updateAnnouncerStatus,
+} from "@/lib/firestore/announcers";
 import {
   fetchAffiliations,
   type AffiliationData,
@@ -23,6 +26,7 @@ import {
   ChevronDoubleRightIcon,
 } from "@/components/ui/icons";
 import { useStorageUrl } from "@/lib/storageUtils";
+import { useToast } from "@/contexts/ToastContext";
 
 interface AnnouncerTableProps {
   announcers?: Announcer[];
@@ -152,6 +156,7 @@ function AnnouncerRow({
 
 export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
   const router = useRouter();
+  const toast = useToast();
   const { isAuthenticated, isLoading } = useAdminAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -293,6 +298,7 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
           affiliation_name: announcer.affiliation_name,
           phone: announcer.phone || "",
           role: announcer.role || "",
+          profilePicture: announcer.profilePicture || "",
         },
       });
     }
@@ -303,14 +309,37 @@ export default function AnnouncerTable({ announcers }: AnnouncerTableProps) {
     setShowStatusModal(true);
   };
 
-  const confirmStatusChange = () => {
+  const confirmStatusChange = async () => {
     if (selectedAnnouncer) {
       const newStatus =
         selectedAnnouncer.status === ANNOUNCER_STATUS.ACTIVE
           ? ANNOUNCER_STATUS.INACTIVE
           : ANNOUNCER_STATUS.ACTIVE;
-      console.log(`Change ${selectedAnnouncer.name} status to:`, newStatus);
-      // Here you would update the status in your data store
+
+      try {
+        await updateAnnouncerStatus(
+          selectedAnnouncer.id,
+          newStatus as "active" | "inactive",
+        );
+
+        // Update local state
+        if (fetchedAnnouncers) {
+          setFetchedAnnouncers(
+            fetchedAnnouncers.map((a) =>
+              a.id === selectedAnnouncer.id
+                ? { ...a, status: newStatus as AnnouncerStatus }
+                : a,
+            ),
+          );
+        }
+
+        toast.success(
+          `Announcer ${newStatus === "active" ? "activated" : "deactivated"} successfully!`,
+        );
+      } catch (error: any) {
+        console.error("Error updating announcer status:", error);
+        toast.error(error.message || "Failed to update announcer status");
+      }
     }
     setShowStatusModal(false);
     setSelectedAnnouncer(null);

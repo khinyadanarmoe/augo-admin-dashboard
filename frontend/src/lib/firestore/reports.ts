@@ -14,6 +14,46 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Report } from "@/types/export";
+import { normalizeReportCategory } from "@/types/constants";
+
+const toIsoString = (value: any): string | undefined => {
+  if (!value) return undefined;
+
+  if (typeof value?.toDate === 'function') {
+    const date = value.toDate();
+    return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+};
+
+const getReportDateIso = (data: any): string => {
+  return (
+    toIsoString(data.reportDate) ||
+    toIsoString(data.createdAt) ||
+    toIsoString(data.updatedAt) ||
+    new Date().toISOString()
+  );
+};
+
+const mapReportDoc = (docSnapshot: { id: string; data: () => DocumentData }): Report => {
+  const data = docSnapshot.data();
+  return {
+    id: docSnapshot.id,
+    ...data,
+    category: normalizeReportCategory(data.category),
+    reportDate: getReportDateIso(data),
+  } as Report;
+};
+
+const sortByReportDateDesc = (reports: Report[]): Report[] => {
+  return reports.sort((a, b) => {
+    const dateA = new Date(a.reportDate).getTime();
+    const dateB = new Date(b.reportDate).getTime();
+    return dateB - dateA;
+  });
+};
 
 /**
  * Get all reports from Firestore
@@ -21,17 +61,9 @@ import { Report } from "@/types/export";
 export const getReports = async (): Promise<Report[]> => {
   try {
     const reportsCollection = collection(db, 'reports');
-    const q = query(reportsCollection, orderBy('reportDate', 'desc'));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(reportsCollection);
 
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
-      } as Report;
-    });
+    return sortByReportDateDesc(snapshot.docs.map(mapReportDoc));
   } catch (error) {
     console.error('Error fetching reports:', error);
     throw error;
@@ -45,17 +77,9 @@ export const subscribeToReports = (
   callback: (reports: Report[]) => void
 ): Unsubscribe => {
   const reportsCollection = collection(db, 'reports');
-  const q = query(reportsCollection, orderBy('reportDate', 'desc'));
 
-  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-    const reports: Report[] = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
-      } as Report;
-    });
+  return onSnapshot(reportsCollection, (snapshot: QuerySnapshot<DocumentData>) => {
+    const reports: Report[] = sortByReportDateDesc(snapshot.docs.map(mapReportDoc));
     callback(reports);
   }, (error) => {
     console.error('Error in reports subscription:', error);
@@ -81,14 +105,7 @@ export const subscribeToRecentReports = (
     q,
     (snapshot: QuerySnapshot<DocumentData>) => {
       const reports: Report[] = snapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
-          } as Report;
-        })
+        .map(mapReportDoc)
         .sort((a, b) => {
           // Sort by reportDate descending
           const dateA = new Date(a.reportDate).getTime();
@@ -113,21 +130,10 @@ export const subscribeToRecentReports = (
 export const getReportsByStatus = async (status: string): Promise<Report[]> => {
   try {
     const reportsCollection = collection(db, 'reports');
-    const q = query(
-      reportsCollection,
-      where('status', '==', status),
-      orderBy('reportDate', 'desc')
-    );
+    const q = query(reportsCollection, where('status', '==', status));
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
-      } as Report;
-    });
+    return sortByReportDateDesc(snapshot.docs.map(mapReportDoc));
   } catch (error) {
     console.error('Error fetching reports by status:', error);
     throw error;
@@ -139,22 +145,15 @@ export const getReportsByStatus = async (status: string): Promise<Report[]> => {
  */
 export const getReportsByCategory = async (category: string): Promise<Report[]> => {
   try {
+    const normalizedCategory = normalizeReportCategory(category);
     const reportsCollection = collection(db, 'reports');
-    const q = query(
-      reportsCollection,
-      where('category', '==', category),
-      orderBy('reportDate', 'desc')
-    );
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(reportsCollection);
 
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
-      } as Report;
-    });
+    return sortByReportDateDesc(
+      snapshot.docs
+        .map(mapReportDoc)
+        .filter((report) => normalizeReportCategory(report.category) === normalizedCategory)
+    );
   } catch (error) {
     console.error('Error fetching reports by category:', error);
     throw error;
@@ -243,14 +242,7 @@ export const getUrgentReports = async (threshold: number = 5): Promise<Report[]>
     );
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        reportDate: data.reportDate?.toDate ? data.reportDate.toDate().toISOString() : data.reportDate
-      } as Report;
-    });
+    return snapshot.docs.map(mapReportDoc);
   } catch (error) {
     console.error('Error fetching urgent reports:', error);
     throw error;

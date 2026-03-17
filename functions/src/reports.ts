@@ -9,6 +9,31 @@ const HIGH_SEVERITY_CATEGORIES = [
     "scam",
 ];
 
+// Backward-compatible aliases for legacy or iOS-side category values
+const REPORT_CATEGORY_ALIASES: Record<string, string> = {
+    threat: "threats_violence",
+    violence: "threats_violence",
+    threat_violence: "threats_violence",
+    threat_and_violence: "threats_violence",
+    threats_and_violence: "threats_violence",
+    inappropriate_content: "inappropriate",
+};
+
+function normalizeReportCategory(category: unknown): string {
+    if (typeof category !== "string") {
+        return "";
+    }
+
+    const normalized = category
+        .trim()
+        .toLowerCase()
+        .replace(/[\s/&-]+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "");
+
+    return REPORT_CATEGORY_ALIASES[normalized] || normalized;
+}
+
 /**
  * Cloud Function: Auto-remove posts when reported with high severity
  * Triggers when a new report is created
@@ -18,15 +43,24 @@ export const handleNewReport = functions.firestore
     .onCreate(async (snapshot, context) => {
         const report = snapshot.data();
         const reportId = context.params.reportId;
+        const normalizedCategory = normalizeReportCategory(report.category);
 
         console.log(`[handleNewReport] Triggered for report ${reportId}`);
         console.log(`[handleNewReport] Report category: ${report.category}`);
+        console.log(`[handleNewReport] Normalized category: ${normalizedCategory}`);
         console.log(`[handleNewReport] High severity categories:`, HIGH_SEVERITY_CATEGORIES);
 
         try {
+            if (normalizedCategory && normalizedCategory !== report.category) {
+                await snapshot.ref.update({
+                    category: normalizedCategory,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+
             // Check if report category is high severity
-            if (HIGH_SEVERITY_CATEGORIES.includes(report.category)) {
-                console.log(`[handleNewReport] Category "${report.category}" is HIGH SEVERITY - proceeding with auto-removal`);
+            if (HIGH_SEVERITY_CATEGORIES.includes(normalizedCategory)) {
+                console.log(`[handleNewReport] Category "${normalizedCategory}" is HIGH SEVERITY - proceeding with auto-removal`);
                 const postId = report.postId;
 
                 if (!postId) {
@@ -46,7 +80,7 @@ export const handleNewReport = functions.firestore
                 await postRef.update({
                     status: "removed",
                     removedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    removedReason: `Auto-removed due to high severity report: ${report.category}`,
+                    removedReason: `Auto-removed due to high severity report: ${normalizedCategory}`,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
 
@@ -54,11 +88,12 @@ export const handleNewReport = functions.firestore
                 await snapshot.ref.update({
                     status: "resolved",
                     autoRemoved: true,
+                    category: normalizedCategory || report.category,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
 
                 console.log(
-                    `Post ${postId} auto-removed due to high severity report: ${report.category}`
+                    `Post ${postId} auto-removed due to high severity report: ${normalizedCategory}`
                 );
 
                 // Optionally: Send notification to reported user
@@ -68,18 +103,18 @@ export const handleNewReport = functions.firestore
                         userId: reportedUserId,
                         type: "post_removed",
                         title: "Post Removed",
-                        message: `Your post was removed due to a ${report.category.replace(/_/g, " ")} violation.`,
+                        message: `Your post was removed due to a ${(normalizedCategory || "policy").replace(/_/g, " ")} violation.`,
                         createdAt: admin.firestore.FieldValue.serverTimestamp(),
                         read: false,
                         data: {
                             postId,
                             reportId,
-                            category: report.category,
+                            category: normalizedCategory || report.category,
                         },
                     });
                 }
             } else {
-                console.log(`[handleNewReport] Category "${report.category}" is NOT high severity - no auto-removal`);
+                console.log(`[handleNewReport] Category "${normalizedCategory || report.category}" is NOT high severity - no auto-removal`);
             }
         } catch (error) {
             console.error("[handleNewReport] Error handling new report:", error);
@@ -120,21 +155,22 @@ export const updateReportMetrics = functions.firestore
 
             reportsSnapshot.docs.forEach((doc) => {
                 const report = doc.data();
+                const normalizedCategory = normalizeReportCategory(report.category) || "other";
 
                 // Count by category
-                categoryCounts[report.category] =
-                    (categoryCounts[report.category] || 0) + 1;
+                categoryCounts[normalizedCategory] =
+                    (categoryCounts[normalizedCategory] || 0) + 1;
 
                 // Count by severity
-                if (HIGH_SEVERITY_CATEGORIES.includes(report.category)) {
+                if (HIGH_SEVERITY_CATEGORIES.includes(normalizedCategory)) {
                     severityCounts.high++;
                 } else if (
                     ["harassment", "impersonation", "misinformation"].includes(
-                        report.category
+                        normalizedCategory
                     )
                 ) {
                     severityCounts.medium++;
-                } else if (report.category === "spam") {
+                } else if (normalizedCategory === "spam") {
                     severityCounts.low++;
                 } else {
                     severityCounts.other++;

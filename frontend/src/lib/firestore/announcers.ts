@@ -171,3 +171,26 @@ export async function updateAnnouncerProfilePicture(announcerId: string, profile
     const announcerRef = doc(db, "announcers", announcerId);
     await updateDoc(announcerRef, { profilePicture: profilePicturePath });
 }
+
+/**
+ * ✅ Updates announcer status (active/inactive) via Cloud Function
+ */
+export async function updateAnnouncerStatus(announcerId: string, status: "active" | "inactive"): Promise<void> {
+    try {
+        const updateStatusFn = httpsCallable(functions, 'updateAnnouncerStatus');
+
+        const result = await updateStatusFn({
+            announcerId,
+            status
+        });
+
+        const data = result.data as { success: boolean; message: string };
+
+        if (!data.success) {
+            throw new Error(data.message || `Failed to ${status === "active" ? "activate" : "deactivate"} announcer`);
+        }
+    } catch (error: any) {
+        console.error('Error updating announcer status:', error);
+        throw new Error(error.message || `Failed to ${status === "active" ? "activate" : "deactivate"} announcer`);
+    }
+}

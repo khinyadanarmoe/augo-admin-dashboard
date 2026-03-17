@@ -16,6 +16,7 @@ import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 import { ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 import { useToast } from "@/contexts/ToastContext";
+import { useStorageUrl } from "@/lib/storageUtils";
 
 interface AnnouncerFormData {
   name: string;
@@ -45,6 +46,9 @@ function AddAnnouncer() {
     profilePicture: null,
   });
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [existingProfilePicturePath, setExistingProfilePicturePath] = useState<
+    string | null
+  >(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCustomAffiliation, setIsCustomAffiliation] = useState(false);
   const [customAffiliationName, setCustomAffiliationName] = useState("");
@@ -81,6 +85,7 @@ function AddAnnouncer() {
     if (isEditMode && query.id) {
       const affiliationType = (query.affiliation_type as string) || "";
       const affiliationName = (query.affiliation_name as string) || "";
+      const profilePicturePath = (query.profilePicture as string) || "";
 
       setFormData({
         name: (query.name as string) || "",
@@ -92,6 +97,11 @@ function AddAnnouncer() {
         phone: (query.phone as string) || "",
         profilePicture: null,
       });
+
+      // Store the existing profile picture path
+      if (profilePicturePath) {
+        setExistingProfilePicturePath(profilePicturePath);
+      }
 
       // Check if affiliation name is custom (not in loaded list)
       if (affiliationType && affiliationName) {
@@ -128,6 +138,24 @@ function AddAnnouncer() {
       setIsInitialLoad(false);
     }
   }, [isEditMode, query]);
+
+  // Load existing profile picture from storage when path is available
+  useEffect(() => {
+    if (existingProfilePicturePath) {
+      const loadExistingProfilePicture = async () => {
+        try {
+          const { getDownloadURL } = await import("firebase/storage");
+          const storageRef = ref(storage, existingProfilePicturePath);
+          const url = await getDownloadURL(storageRef);
+          setPreviewImage(url);
+        } catch (error) {
+          console.error("Error loading existing profile picture:", error);
+          // If storage URL fails, don't show an error - just skip the preview
+        }
+      };
+      loadExistingProfilePicture();
+    }
+  }, [existingProfilePicturePath]);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -169,6 +197,9 @@ function AddAnnouncer() {
         ...prev,
         profilePicture: file,
       }));
+
+      // Clear existing profile picture when new one is selected
+      setExistingProfilePicturePath(null);
 
       // Create preview
       const reader = new FileReader();

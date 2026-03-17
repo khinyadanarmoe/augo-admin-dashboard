@@ -11,10 +11,12 @@ import {
   updateAnnouncer,
   deleteAnnouncer,
   setAnnouncerClaim,
+  updateAnnouncerStatus,
 } from "./announcers";
 import {
   activateScheduledAnnouncements,
   expireEndedAnnouncements,
+  createAnnouncement,
 } from "./announcements";
 import {
   handleNewReport,
@@ -25,10 +27,10 @@ import {
 export { sendUserNotification, sendAnnouncementNotification };
 
 // Export announcer management functions
-export { createAnnouncer, updateAnnouncer, deleteAnnouncer, setAnnouncerClaim };
+export { createAnnouncer, updateAnnouncer, deleteAnnouncer, setAnnouncerClaim, updateAnnouncerStatus };
 
 // Export announcement scheduled functions
-export { activateScheduledAnnouncements, expireEndedAnnouncements };
+export { activateScheduledAnnouncements, expireEndedAnnouncements, createAnnouncement };
 
 // Export report management functions
 export { handleNewReport, updateReportMetrics };

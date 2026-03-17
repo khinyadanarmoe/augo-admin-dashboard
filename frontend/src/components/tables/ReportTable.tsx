@@ -6,6 +6,7 @@ import {
   CATEGORY_SEVERITY_MAP,
   CATEGORY_LABELS,
   REPORT_SEVERITY,
+  normalizeReportCategory,
 } from "@/types/export";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useAdminConfiguration } from "@/hooks/useAdminConfiguration";
@@ -46,7 +47,7 @@ export default function ReportTable({
   const [dateFilter, setDateFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [sortBy, setSortBy] = useState<"reportCount">("reportCount");
+  const [sortBy, setSortBy] = useState<"reportCount" | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -172,6 +173,12 @@ export default function ReportTable({
 
   // Filter reports
   const filteredReportsUnsorted = reports.filter((report) => {
+    const reporterName = report.reporter?.name || "";
+    const reportedName = report.reported?.name || "";
+    const postContent = report.postContent || "";
+    const postId = report.postId || "";
+    const description = report.description || "";
+
     const reportDate = (() => {
       if (!report.reportDate) return "";
       try {
@@ -197,14 +204,18 @@ export default function ReportTable({
     return (
       (searchTerm === "" ||
         report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.reporter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.reported.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.postContent.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.postId.toLowerCase().includes(searchTerm.toLowerCase())) &&
+        reporterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reportedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        postContent.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        postId.toLowerCase().includes(searchTerm.toLowerCase())) &&
       (dateFilter === "" || reportDate === dateFilter) &&
-      (categoryFilter === "" || report.category === categoryFilter) &&
-      (statusFilter === "" || report.status === statusFilter)
+      (categoryFilter === "" ||
+        normalizeReportCategory(report.category) === categoryFilter) &&
+      (statusFilter === "" ||
+        (statusFilter === "removed"
+          ? report.autoRemoved === true
+          : report.status === statusFilter))
     );
   });
 
@@ -217,12 +228,15 @@ export default function ReportTable({
     {},
   );
 
-  // Sort using accumulated report count
-  const sortedReports = filteredReportsUnsorted.sort((a, b) => {
-    const countA = reportCountByPostId[a.postId] || a.reportCount;
-    const countB = reportCountByPostId[b.postId] || b.reportCount;
-    return sortOrder === "asc" ? countA - countB : countB - countA;
-  });
+  // Sort using accumulated report count only when a sort field is selected
+  let sortedReports = filteredReportsUnsorted;
+  if (sortBy) {
+    sortedReports = [...filteredReportsUnsorted].sort((a, b) => {
+      const countA = reportCountByPostId[a.postId] || a.reportCount;
+      const countB = reportCountByPostId[b.postId] || b.reportCount;
+      return sortOrder === "asc" ? countA - countB : countB - countA;
+    });
+  }
 
   const filteredReports = sortedReports;
 
@@ -249,6 +263,7 @@ export default function ReportTable({
       setSortBy(field);
       setSortOrder("desc");
     }
+    setCurrentPage(1);
   };
 
   const handleDismissReport = (reportId: string) => {
@@ -318,8 +333,11 @@ export default function ReportTable({
   };
 
   const getCategoryColor = (category: string) => {
+    const normalizedCategory = normalizeReportCategory(category);
     const severity =
-      CATEGORY_SEVERITY_MAP[category as keyof typeof CATEGORY_SEVERITY_MAP];
+      CATEGORY_SEVERITY_MAP[
+        normalizedCategory as keyof typeof CATEGORY_SEVERITY_MAP
+      ];
 
     switch (severity) {
       case REPORT_SEVERITY.HIGH:
@@ -336,12 +354,20 @@ export default function ReportTable({
   };
 
   const getCategoryLabel = (category: string) => {
+    const normalizedCategory = normalizeReportCategory(category);
     return (
-      CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS] || category
+      CATEGORY_LABELS[normalizedCategory as keyof typeof CATEGORY_LABELS] ||
+      normalizedCategory ||
+      category
     );
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (report: Report) => {
+    if (report.autoRemoved) {
+      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
+    }
+
+    const status = report.status;
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300";
@@ -350,6 +376,10 @@ export default function ReportTable({
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300";
     }
+  };
+
+  const getStatusLabel = (report: Report) => {
+    return report.autoRemoved ? "removed" : report.status;
   };
 
   const handleView = (reportId: string) => {
@@ -443,6 +473,7 @@ export default function ReportTable({
               <option value="">All Status</option>
               <option value="pending">Pending</option>
               <option value="resolved">Resolved</option>
+              <option value="removed">Removed</option>
               <option value="dismissed">Dismissed</option>
             </select>
           </div>
@@ -524,41 +555,41 @@ export default function ReportTable({
                   </td>
                   <td className="px-3 py-4 text-sm text-gray-900 dark:text-white">
                     <div className="truncate mb-1" title={report.postContent}>
-                      {report.postContent}
+                      {report.postContent || "(No content)"}
                     </div>
                     <div
                       className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate"
                       title={report.postId}
                     >
-                      ID: {report.postId}
+                      ID: {report.postId || "N/A"}
                     </div>
                   </td>
                   <td className="px-3 py-4">
                     <div
                       className="text-sm font-medium text-gray-900 dark:text-white truncate"
-                      title={report.reporter.name}
+                      title={report.reporter?.name || "Unknown Reporter"}
                     >
-                      {report.reporter.name}
+                      {report.reporter?.name || "Unknown Reporter"}
                     </div>
                     <div
                       className="text-xs text-gray-500 dark:text-gray-400 truncate"
-                      title={report.reporter.id}
+                      title={report.reporter?.id || "N/A"}
                     >
-                      ID: {report.reporter.id}
+                      ID: {report.reporter?.id || "N/A"}
                     </div>
                   </td>
                   <td className="px-3 py-4">
                     <div
                       className="text-sm font-medium text-gray-900 dark:text-white truncate"
-                      title={report.reported.name}
+                      title={report.reported?.name || "Unknown User"}
                     >
-                      {report.reported.name}
+                      {report.reported?.name || "Unknown User"}
                     </div>
                     <div
                       className="text-xs text-gray-500 dark:text-gray-400 truncate"
-                      title={report.reported.id}
+                      title={report.reported?.id || "N/A"}
                     >
-                      ID: {report.reported.id}
+                      ID: {report.reported?.id || "N/A"}
                     </div>
                   </td>
                   <td className="px-3 py-4">
@@ -579,9 +610,9 @@ export default function ReportTable({
                   </td>
                   <td className="px-3 py-4">
                     <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full truncate inline-block max-w-full ${getStatusColor(report.status)}`}
+                      className={`px-2 py-1 text-xs font-medium rounded-full truncate inline-block max-w-full ${getStatusColor(report)}`}
                     >
-                      {report.status}
+                      {getStatusLabel(report)}
                     </span>
                   </td>
                   <td className="px-3 py-4 text-sm">

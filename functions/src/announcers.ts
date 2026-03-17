@@ -402,3 +402,75 @@ export const setAnnouncerClaim = functions.https.onCall(async (data: { userId: s
         );
     }
 });
+
+/**
+ * Updates announcer status (active/inactive)
+ * Only admins can toggle announcer status
+ */
+export const updateAnnouncerStatus = functions.https.onCall(async (data: { announcerId: string; status: string }, context) => {
+    try {
+        // ✅ Verify caller is admin
+        if (!context.auth) {
+            throw new functions.https.HttpsError(
+                "unauthenticated",
+                "User must be authenticated to update announcer status"
+            );
+        }
+
+        const callerToken = await admin.auth().getUser(context.auth.uid);
+        const isAdmin = callerToken.customClaims?.admin === true;
+
+        if (!isAdmin) {
+            throw new functions.https.HttpsError(
+                "permission-denied",
+                "Only admins can update announcer status"
+            );
+        }
+
+        const { announcerId, status } = data;
+
+        if (!announcerId) {
+            throw new functions.https.HttpsError(
+                "invalid-argument",
+                "announcerId is required"
+            );
+        }
+
+        if (!status || (status !== "active" && status !== "inactive")) {
+            throw new functions.https.HttpsError(
+                "invalid-argument",
+                "status must be either 'active' or 'inactive'"
+            );
+        }
+
+        functions.logger.info(`Updating status for announcer ${announcerId} to: ${status}`);
+
+        // Update Firestore document
+        await admin.firestore()
+            .collection("announcers")
+            .doc(announcerId)
+            .update({
+                status: status,
+                updated_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+        functions.logger.info(`Status updated successfully for announcer: ${announcerId}`);
+
+        return {
+            success: true,
+            message: `Announcer ${status === "active" ? "activated" : "deactivated"} successfully`,
+        };
+
+    } catch (error: any) {
+        functions.logger.error("Error updating announcer status:", error);
+
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+
+        throw new functions.https.HttpsError(
+            "internal",
+            `Failed to update announcer status: ${error.message}`
+        );
+    }
+});

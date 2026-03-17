@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Announcer, Announcement } from "@/types/export";
 import { useStorageUrl } from "@/lib/storageUtils";
 import { fetchAnnouncements } from "@/lib/firestore/announcements";
+import { updateAnnouncerStatus } from "@/lib/firestore/announcers";
+import { useToast } from "@/contexts/ToastContext";
 
 interface AnnouncerDetailDrawerProps {
   announcer: Announcer | null;

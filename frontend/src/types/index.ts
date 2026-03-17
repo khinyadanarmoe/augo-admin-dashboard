@@ -66,6 +66,7 @@ export interface Report {
   reportCount: number;
   status: import('./constants').ReportStatus;
   description: string;
+  autoRemoved?: boolean;
 }
 
 // Announcement related types

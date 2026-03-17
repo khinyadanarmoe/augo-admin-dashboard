@@ -7,6 +7,7 @@ import {
   CATEGORY_SEVERITY_MAP,
   CATEGORY_LABELS,
   REPORT_SEVERITY,
+  normalizeReportCategory,
 } from "@/types/export";
 import { User } from "@/types";
 import {
@@ -59,7 +60,12 @@ export default function ReportDetailDrawer({
 
   if (!isOpen || !report) return null;
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (report: Report) => {
+    if (report.autoRemoved) {
+      return "bg-red-100 text-red-800 border-red-200";
+    }
+
+    const status = report.status;
     switch (status) {
       case REPORT_STATUS.PENDING:
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
@@ -70,9 +76,20 @@ export default function ReportDetailDrawer({
     }
   };
 
+  const getStatusLabel = (report: Report) => {
+    if (report.autoRemoved) {
+      return "Removed";
+    }
+
+    return report.status.charAt(0).toUpperCase() + report.status.slice(1);
+  };
+
   const getCategoryColor = (category: string) => {
+    const normalizedCategory = normalizeReportCategory(category);
     const severity =
-      CATEGORY_SEVERITY_MAP[category as keyof typeof CATEGORY_SEVERITY_MAP];
+      CATEGORY_SEVERITY_MAP[
+        normalizedCategory as keyof typeof CATEGORY_SEVERITY_MAP
+      ];
 
     switch (severity) {
       case REPORT_SEVERITY.HIGH:
@@ -89,8 +106,11 @@ export default function ReportDetailDrawer({
   };
 
   const getCategoryLabel = (category: string) => {
+    const normalizedCategory = normalizeReportCategory(category);
     return (
-      CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS] || category
+      CATEGORY_LABELS[normalizedCategory as keyof typeof CATEGORY_LABELS] ||
+      normalizedCategory ||
+      category
     );
   };
 
@@ -329,9 +349,9 @@ export default function ReportDetailDrawer({
                 Status:
               </span>
               <span
-                className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(report.status)}`}
+                className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(report)}`}
               >
-                {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                {getStatusLabel(report)}
               </span>
             </div>
             <div className="flex items-center space-x-2">
