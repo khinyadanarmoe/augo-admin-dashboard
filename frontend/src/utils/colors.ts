@@ -2,11 +2,11 @@
 
 export const PostCategoryColors = {
   casual: 'bg-yellow-400',
-  announcements: 'bg-green-500',
-  events: 'bg-yellow-500',
   'lost & found': 'bg-purple-500',
-  complaints: 'bg-gray-500',
-  academic: 'bg-blue-500'
+  complaint: 'bg-red-500',
+  event: 'bg-yellow-500',
+  question: 'bg-blue-500',
+  'ar challenge': 'bg-indigo-500'
 };
 
 export const UserStatusColors = {

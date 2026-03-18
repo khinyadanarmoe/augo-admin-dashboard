@@ -898,6 +898,9 @@ export default function PostDetailDrawer({
         onClose={handleCloseUserDrawer}
         onWarn={handleUserWarn}
         onSuspendToggle={handleUserSuspendToggle}
+        confirmActions={true}
+        suspendThreshold={config?.suspendThreshold || 5}
+        suspendDurationDays={config?.suspendDurationDays || 30}
       />
 
       {/* Full Screen Photo Modal */}

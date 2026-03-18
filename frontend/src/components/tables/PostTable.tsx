@@ -102,6 +102,17 @@ export default function PostTable({
   // Use prop posts or Firestore posts
   const displayPosts = propPosts || firestorePosts;
 
+  // Use local date parts so date input filtering matches the user's timezone.
+  const toLocalDateInputValue = (value: string): string => {
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return "";
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   // Auto-expire active posts past visibility duration
   useEffect(() => {
     if (!config?.postVisibilityDuration || displayPosts.length === 0) return;
@@ -131,7 +142,7 @@ export default function PostTable({
       const contentMatch = post.content.toLowerCase().includes(searchLower);
       const userMatch = post.user.name.toLowerCase().includes(searchLower);
       const idMatch = post.id.toLowerCase().includes(searchLower);
-      const postDate = new Date(post.postDate).toISOString().split("T")[0];
+      const postDate = toLocalDateInputValue(post.postDate);
       const dateMatch = dateFilter === "" || postDate === dateFilter;
       const categoryMatch =
         categoryFilter === "" || post.category === categoryFilter;
@@ -403,29 +414,23 @@ export default function PostTable({
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               <option value="">All Categories</option>
-              <option value={POST_CATEGORIES.CAMPUS_LIFE}>
-                {POST_CATEGORIES.CAMPUS_LIFE}
-              </option>
               <option value={POST_CATEGORIES.CASUAL}>
                 {POST_CATEGORIES.CASUAL}
               </option>
               <option value={POST_CATEGORIES.LOST_AND_FOUND}>
                 {POST_CATEGORIES.LOST_AND_FOUND}
               </option>
-              <option value={POST_CATEGORIES.COMPLAINTS}>
-                {POST_CATEGORIES.COMPLAINTS}
-              </option>
-              <option value={POST_CATEGORIES.SAFETY}>
-                {POST_CATEGORIES.SAFETY}
-              </option>
-              <option value={POST_CATEGORIES.ACADEMIC}>
-                {POST_CATEGORIES.ACADEMIC}
+              <option value={POST_CATEGORIES.COMPLAINT}>
+                {POST_CATEGORIES.COMPLAINT}
               </option>
               <option value={POST_CATEGORIES.EVENT}>
                 {POST_CATEGORIES.EVENT}
               </option>
-              <option value={POST_CATEGORIES.OTHER}>
-                {POST_CATEGORIES.OTHER}
+              <option value={POST_CATEGORIES.QUESTION}>
+                {POST_CATEGORIES.QUESTION}
+              </option>
+              <option value={POST_CATEGORIES.AR_CHALLENGE}>
+                {POST_CATEGORIES.AR_CHALLENGE}
               </option>
             </select>
 

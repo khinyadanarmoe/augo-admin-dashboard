@@ -243,14 +243,12 @@ export const LOCATIONS = {
 
 // Post categories
 export const POST_CATEGORIES = {
-  CAMPUS_LIFE: 'Campus Life',
   CASUAL: 'Casual',
-  LOST_AND_FOUND: 'Lost and Found',
-  COMPLAINTS: 'Complaints',
-  SAFETY: 'Safety',
-  ACADEMIC: 'Academic',
+  LOST_AND_FOUND: 'Lost & Found',
+  COMPLAINT: 'Complaint',
   EVENT: 'Event',
-  OTHER: 'Other'
+  QUESTION: 'Question',
+  AR_CHALLENGE: 'AR Challenge'
 } as const;
 
 // Content topics for announcements

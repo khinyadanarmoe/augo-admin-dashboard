@@ -675,6 +675,9 @@ export default function ReportDetailDrawer({
         onClose={handleCloseUserDrawer}
         onWarn={handleUserWarn}
         onSuspendToggle={handleUserSuspendToggle}
+        confirmActions={true}
+        suspendThreshold={config?.suspendThreshold || 5}
+        suspendDurationDays={config?.suspendDurationDays || 30}
       />
     </>
   );

@@ -8,7 +8,9 @@ import { withAdminAuth } from "@/components/hoc/withAdminAuth";
 function Announcements() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [highlightAnnouncementId, setHighlightAnnouncementId] = useState<string | null>(null);
+  const [highlightAnnouncementId, setHighlightAnnouncementId] = useState<
+    string | null
+  >(null);
 
   // Handle query parameters
   useEffect(() => {
@@ -49,14 +51,14 @@ function Announcements() {
             <div>
               <h1 className="text-3xl font-bold">Announcement Management</h1>
               <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-                Manage announcement history with filters by date, faculty,
-                location, and content topic. Track likes/dislikes and status.
+                Manage announcement history with filters by date, faculty, and
+                content topic. Track likes/dislikes and status.
               </p>
             </div>
             <NotificationBell className="group" />
           </header>
 
-          <AnnouncementTable 
+          <AnnouncementTable
             initialSearchTerm={searchTerm}
             highlightAnnouncementId={highlightAnnouncementId}
           />

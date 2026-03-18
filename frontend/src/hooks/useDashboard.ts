@@ -409,40 +409,48 @@ async function fetchPostCategories(): Promise<PostCategory[]> {
 
     postsSnapshot.docs.forEach(doc => {
       const data = doc.data();
-      const category = data.category || 'other';
+      const category = data.category || 'casual';
       categoryCounts[category] = (categoryCounts[category] || 0) + 1;
     });
 
     // Category name normalization: Firebase keys to display values
     const categoryKeyToDisplay: { [key: string]: string } = {
-      'campus_life': POST_CATEGORIES.CAMPUS_LIFE,
       'casual': POST_CATEGORIES.CASUAL,
       'lost_and_found': POST_CATEGORIES.LOST_AND_FOUND,
-      'complaints': POST_CATEGORIES.COMPLAINTS,
-      'safety': POST_CATEGORIES.SAFETY,
-      'academic': POST_CATEGORIES.ACADEMIC,
+      'lost and found': POST_CATEGORIES.LOST_AND_FOUND,
+      'lost & found': POST_CATEGORIES.LOST_AND_FOUND,
+      'complaint': POST_CATEGORIES.COMPLAINT,
+      'complaints': POST_CATEGORIES.COMPLAINT,
       'event': POST_CATEGORIES.EVENT,
-      'other': POST_CATEGORIES.OTHER,
-      // Also handle if they're already stored as display values
-      [POST_CATEGORIES.CAMPUS_LIFE]: POST_CATEGORIES.CAMPUS_LIFE,
-      [POST_CATEGORIES.CASUAL]: POST_CATEGORIES.CASUAL,
-      [POST_CATEGORIES.LOST_AND_FOUND]: POST_CATEGORIES.LOST_AND_FOUND,
-      [POST_CATEGORIES.COMPLAINTS]: POST_CATEGORIES.COMPLAINTS,
-      [POST_CATEGORIES.SAFETY]: POST_CATEGORIES.SAFETY,
-      [POST_CATEGORIES.ACADEMIC]: POST_CATEGORIES.ACADEMIC,
-      [POST_CATEGORIES.EVENT]: POST_CATEGORIES.EVENT,
-      [POST_CATEGORIES.OTHER]: POST_CATEGORIES.OTHER
+      'events': POST_CATEGORIES.EVENT,
+      'question': POST_CATEGORIES.QUESTION,
+      'questions': POST_CATEGORIES.QUESTION,
+      'ar_challenge': POST_CATEGORIES.AR_CHALLENGE,
+      'ar challenge': POST_CATEGORIES.AR_CHALLENGE,
+
+      // Legacy values mapped into the new six categories
+      'campus_life': POST_CATEGORIES.CASUAL,
+      'campus life': POST_CATEGORIES.CASUAL,
+      'safety': POST_CATEGORIES.COMPLAINT,
+      'academic': POST_CATEGORIES.QUESTION,
+      'other': POST_CATEGORIES.CASUAL,
+
+      // Already formatted display values (lowercased)
+      [POST_CATEGORIES.CASUAL.toLowerCase()]: POST_CATEGORIES.CASUAL,
+      [POST_CATEGORIES.LOST_AND_FOUND.toLowerCase()]: POST_CATEGORIES.LOST_AND_FOUND,
+      [POST_CATEGORIES.COMPLAINT.toLowerCase()]: POST_CATEGORIES.COMPLAINT,
+      [POST_CATEGORIES.EVENT.toLowerCase()]: POST_CATEGORIES.EVENT,
+      [POST_CATEGORIES.QUESTION.toLowerCase()]: POST_CATEGORIES.QUESTION,
+      [POST_CATEGORIES.AR_CHALLENGE.toLowerCase()]: POST_CATEGORIES.AR_CHALLENGE,
     };
 
     const categoryColors: { [key: string]: string } = {
-      [POST_CATEGORIES.CAMPUS_LIFE]: '#3B82F6',     // Blue
       [POST_CATEGORIES.CASUAL]: '#10B981',          // Green
       [POST_CATEGORIES.LOST_AND_FOUND]: '#F59E0B',  // Amber
-      [POST_CATEGORIES.COMPLAINTS]: '#EF4444',      // Red
-      [POST_CATEGORIES.SAFETY]: '#DC2626',          // Dark Red
-      [POST_CATEGORIES.ACADEMIC]: '#8B5CF6',        // Purple
+      [POST_CATEGORIES.COMPLAINT]: '#EF4444',       // Red
       [POST_CATEGORIES.EVENT]: '#EC4899',           // Pink
-      [POST_CATEGORIES.OTHER]: '#6B7280'            // Gray
+      [POST_CATEGORIES.QUESTION]: '#3B82F6',        // Blue
+      [POST_CATEGORIES.AR_CHALLENGE]: '#8B5CF6',    // Purple
     };
 
     // Use POST_CATEGORIES constant for all categories
@@ -452,7 +460,7 @@ async function fetchPostCategories(): Promise<PostCategory[]> {
       // Find the count from Firebase (checking both normalized and potential formats)
       let count = 0;
       for (const [fbCategory, fbCount] of Object.entries(categoryCounts)) {
-        const normalizedName = categoryKeyToDisplay[fbCategory.toLowerCase()] || categoryKeyToDisplay[fbCategory];
+        const normalizedName = categoryKeyToDisplay[String(fbCategory).trim().toLowerCase()];
         if (normalizedName === categoryName) {
           count += fbCount;
         }

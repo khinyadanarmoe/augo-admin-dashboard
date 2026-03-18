@@ -19,6 +19,9 @@ interface UserDetailDrawerProps {
   onClose: () => void;
   onWarn?: (userId: string) => void;
   onSuspendToggle?: (userId: string, currentStatus: string) => void;
+  confirmActions?: boolean;
+  suspendThreshold?: number;
+  suspendDurationDays?: number;
 }
 
 export default function UserDetailDrawer({
@@ -27,6 +30,9 @@ export default function UserDetailDrawer({
   onClose,
   onWarn,
   onSuspendToggle,
+  confirmActions = false,
+  suspendThreshold = 5,
+  suspendDurationDays = 30,
 }: UserDetailDrawerProps) {
   const [showPostsDrawer, setShowPostsDrawer] = useState(false);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
@@ -38,6 +44,8 @@ export default function UserDetailDrawer({
     todayPosts: 0,
   });
   const [loading, setLoading] = useState(false);
+  const [showWarnConfirmModal, setShowWarnConfirmModal] = useState(false);
+  const [showSuspendConfirmModal, setShowSuspendConfirmModal] = useState(false);
 
   // Fetch user posts and calculate statistics
   const fetchUserData = async (userId: string) => {
@@ -137,6 +145,13 @@ export default function UserDetailDrawer({
     }
   }, [user?.id, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setShowWarnConfirmModal(false);
+      setShowSuspendConfirmModal(false);
+    }
+  }, [isOpen]);
+
   // Helper function to format relative time
   const formatRelativeTime = (dateString: string) => {
     if (!dateString) return "Invalid Date";
@@ -178,6 +193,40 @@ export default function UserDetailDrawer({
   const handleCloseDrawers = () => {
     setShowPostsDrawer(false);
     onClose();
+  };
+
+  const handleWarnClick = () => {
+    if (!onWarn) return;
+
+    if (confirmActions) {
+      setShowWarnConfirmModal(true);
+      return;
+    }
+
+    onWarn(user.id);
+  };
+
+  const confirmWarn = () => {
+    if (!onWarn) return;
+    onWarn(user.id);
+    setShowWarnConfirmModal(false);
+  };
+
+  const handleSuspendClick = () => {
+    if (!onSuspendToggle) return;
+
+    if (confirmActions) {
+      setShowSuspendConfirmModal(true);
+      return;
+    }
+
+    onSuspendToggle(user.id, user.status);
+  };
+
+  const confirmSuspendToggle = () => {
+    if (!onSuspendToggle) return;
+    onSuspendToggle(user.id, user.status);
+    setShowSuspendConfirmModal(false);
   };
 
   return (
@@ -457,7 +506,7 @@ export default function UserDetailDrawer({
           <div className="space-y-3">
             {onWarn && (
               <button
-                onClick={() => onWarn(user.id)}
+                onClick={handleWarnClick}
                 className={`w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium ${ActionColors.warn}`}
               >
                 Warn User
@@ -468,14 +517,14 @@ export default function UserDetailDrawer({
               user.status !== USER_STATUS.BANNED &&
               (user.status === USER_STATUS.SUSPENDED ? (
                 <button
-                  onClick={() => onSuspendToggle(user.id, user.status)}
+                  onClick={handleSuspendClick}
                   className={`w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium ${ActionColors.unban}`}
                 >
                   Unsuspend User
                 </button>
               ) : (
                 <button
-                  onClick={() => onSuspendToggle(user.id, user.status)}
+                  onClick={handleSuspendClick}
                   className="w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 hover:bg-orange-200 dark:hover:bg-orange-800"
                 >
                   Suspend User
@@ -489,6 +538,80 @@ export default function UserDetailDrawer({
           </div>
         </div>
       </div>
+
+      {/* Confirm Warn Modal */}
+      {confirmActions && showWarnConfirmModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Warn User
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Are you sure you want to warn {user.name}? This will:
+              <ul className="list-disc ml-5 mt-2">
+                <li>Increment their warning count by 1</li>
+                <li>Mark all their posts as warned</li>
+                <li>Resolve all reports for their posts</li>
+                <li className="text-orange-600 dark:text-orange-400 font-medium">
+                  Auto-suspend if warnings reach {suspendThreshold}
+                </li>
+              </ul>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowWarnConfirmModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmWarn}
+                className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors"
+              >
+                Warn User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Suspend/Unsuspend Modal */}
+      {confirmActions && showSuspendConfirmModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              {user.status === USER_STATUS.SUSPENDED
+                ? "Unsuspend User"
+                : "Suspend User"}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              {user.status === USER_STATUS.SUSPENDED
+                ? `Are you sure you want to unsuspend ${user.name}? They will be able to create posts again.`
+                : `Are you sure you want to suspend ${user.name}? They will no longer be able to create posts for ${suspendDurationDays} days.`}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowSuspendConfirmModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmSuspendToggle}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                  user.status === USER_STATUS.SUSPENDED
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-orange-600 hover:bg-orange-700"
+                }`}
+              >
+                {user.status === USER_STATUS.SUSPENDED
+                  ? "Unsuspend"
+                  : "Suspend"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* User Posts Drawer */}
       <UserPostsDrawer

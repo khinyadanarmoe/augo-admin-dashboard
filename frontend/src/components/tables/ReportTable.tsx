@@ -122,6 +122,34 @@ export default function ReportTable({
       return "Invalid Date";
     }
   };
+
+  // Use local date parts so date input filtering matches the user's timezone.
+  const toLocalDateInputValue = (dateValue: string | any | undefined) => {
+    if (!dateValue) return "";
+
+    try {
+      let date: Date;
+
+      if (dateValue && typeof dateValue === "object" && dateValue.toDate) {
+        date = dateValue.toDate();
+      } else if (typeof dateValue === "string") {
+        date = new Date(dateValue);
+      } else {
+        date = new Date(dateValue);
+      }
+
+      if (isNaN(date.getTime())) {
+        return "";
+      }
+
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    } catch {
+      return "";
+    }
+  };
   // Handle loading and authentication states
   if (authLoading || reportsLoading) {
     return (
@@ -179,27 +207,7 @@ export default function ReportTable({
     const postId = report.postId || "";
     const description = report.description || "";
 
-    const reportDate = (() => {
-      if (!report.reportDate) return "";
-      try {
-        let date: Date;
-        if (
-          report.reportDate &&
-          typeof report.reportDate === "object" &&
-          "toDate" in report.reportDate
-        ) {
-          date = (report.reportDate as any).toDate();
-        } else if (typeof report.reportDate === "string") {
-          date = new Date(report.reportDate);
-        } else {
-          date = new Date(report.reportDate);
-        }
-        if (isNaN(date.getTime())) return "";
-        return date.toISOString().split("T")[0];
-      } catch {
-        return "";
-      }
-    })();
+    const reportDate = toLocalDateInputValue(report.reportDate);
 
     return (
       (searchTerm === "" ||

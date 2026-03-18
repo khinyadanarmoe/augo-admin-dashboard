@@ -14,14 +14,12 @@ interface PostCategoriesChartProps {
 
 // Category colors mapping - matching all POST_CATEGORIES
 const CATEGORY_COLORS: Record<string, string> = {
-  [POST_CATEGORIES.CAMPUS_LIFE]: "#3B82F6", // Blue
   [POST_CATEGORIES.CASUAL]: "#10B981", // Green
   [POST_CATEGORIES.LOST_AND_FOUND]: "#F59E0B", // Amber
-  [POST_CATEGORIES.COMPLAINTS]: "#EF4444", // Red
-  [POST_CATEGORIES.SAFETY]: "#DC2626", // Dark Red
-  [POST_CATEGORIES.ACADEMIC]: "#8B5CF6", // Purple
+  [POST_CATEGORIES.COMPLAINT]: "#EF4444", // Red
   [POST_CATEGORIES.EVENT]: "#EC4899", // Pink
-  [POST_CATEGORIES.OTHER]: "#6B7280", // Gray
+  [POST_CATEGORIES.QUESTION]: "#3B82F6", // Blue
+  [POST_CATEGORIES.AR_CHALLENGE]: "#8B5CF6", // Purple
 };
 
 export default function PostCategoriesChart({

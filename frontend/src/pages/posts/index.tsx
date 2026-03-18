@@ -12,8 +12,8 @@ function Posts() {
   // Handle query parameters
   useEffect(() => {
     const { id } = router.query;
-    
-    if (id && typeof id === 'string') {
+
+    if (id && typeof id === "string") {
       setSearchTerm(id);
     }
   }, [router.query]);
@@ -28,7 +28,10 @@ function Posts() {
           <header className="mb-8 flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold">Post Management</h1>
-              <p className="mt-2 text-zinc-600 dark:text-zinc-400">Search and filter posts by location, category, and status. Sort by engagement metrics.</p>
+              <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+                Search and filter posts by category, and status. Sort by
+                engagement metrics.
+              </p>
             </div>
             <NotificationBell className="group" />
           </header>
